@@ -1,10 +1,13 @@
-import os, sys, re, subprocess, time, datetime
+import os
+import sys
+import re
+import subprocess
+import time
 import cv2
 import numpy as np
-from compare_frame import CompareFrame
 
 
-class CutMovie(CompareFrame):
+class CutMovie():
     # Auto cut video
     def __init__(self, file):
         self.cvSave = True
@@ -37,8 +40,8 @@ class CutMovie(CompareFrame):
         except Exception as e:
             print("__del__ error:", e)
 
-    def saveOrPassAndmkdir(
-        self, frames=None, rate=None, startFrame=None, stopFrame=None
+    def save_ignor(
+            self, frames=None, rate=None, startFrame=None, stopFrame=None
     ):
         if not os.path.exists(self.cutPath):
             os.mkdir(self.cutPath)
@@ -54,8 +57,8 @@ class CutMovie(CompareFrame):
         return True
 
     def save_video(self, frames, rate, size):
-        if not self.saveOrPassAndmkdir(
-            frames=frames, rate=rate, startFrame=None, stopFrame=None
+        if not self.save_ignor(
+                frames=frames, rate=rate, startFrame=None, stopFrame=None
         ):
             return
         self.video_splt_time.append(len(frames))
@@ -74,9 +77,10 @@ class CutMovie(CompareFrame):
         return True
 
     def save_video_with_ffmpeg(self, filename, startFrame=0, stopFrame=1, rate=24):
-        if self.saveOrPassAndmkdir(
-            startFrame=startFrame, stopFrame=stopFrame, rate=rate
-        ):
+        if self.save_ignor(
+                startFrame=startFrame,
+                stopFrame=stopFrame,
+                rate=rate):
             return
         self.video_splt_time.append([startFrame, stopFrame])
         ffmpegPath = "ffmpeg"
@@ -168,13 +172,6 @@ class CutMovie(CompareFrame):
                     frameToStart = currentFrame + 1
             capture.release()
 
-    def matplot(self, x_lst, y_lst):
-        # plot audio character
-        import matplotlib.pyplot as plt
-
-        plt.plot(x_lst, y_lst)
-        plt.show()
-
     def writeF(self, text_lst, file="text.txt"):
         if type(text_lst) == list:
             with open(file, "w", encoding="utf-8") as f:
@@ -184,37 +181,6 @@ class CutMovie(CompareFrame):
             with open(file, "w", encoding="utf-8") as f:
                 f.writelines(text_lst)
         return file
-
-    def progressBar(self, total):
-        from progressbar import ProgressBar, widgets, Percentage, Timer, Bar, ETA
-
-        widgets = ["AutoCutMovie: ", Percentage(), Bar("#"), Timer(), " ", ETA()]
-        global bar
-        bar = ProgressBar(widgets=widgets, maxval=total).start()
-
-    def audio2dataByRosa(self, file):
-        import librosa
-
-        y, sr = librosa.load(file, sr=None)
-        wav_time = np.arange(0, len(y)) * (1.0 / sr)
-        self.framerate = sr
-        self.nframes = len(y)
-        return wav_time, y
-
-    def audio2data(self, file):
-        import wave
-
-        f = wave.open(file, "rb")
-        params = f.getparams()
-        nchannels, sampwidth, self.framerate, self.nframes = params[:4]
-        strData = f.readframes(self.nframes)
-        f.close()
-        waveData = np.fromstring(strData, dtype=np.short)
-        waveData.shape = -1, 2
-        waveData = waveData.T
-        waveData = waveData[0]
-        audioTime = np.arange(0, self.nframes) * (1.0 / self.framerate)
-        return audioTime, waveData
 
     def audioDigital(self, audio):
         audioTime, waveData = self.audio2dataByRosa(audio)
@@ -227,7 +193,7 @@ class CutMovie(CompareFrame):
         frame = 0
         while frame < self.nframes:
             t = audioTime[frame]
-            speed = np.max(waveData[frame : frame + split_frame])
+            speed = np.max(waveData[frame: frame + split_frame])
             frame += split_frame
             time_arr = np.append(time_arr, t)
             speed_arr = np.append(speed_arr, speed)
@@ -255,7 +221,7 @@ class CutMovie(CompareFrame):
                     break
                 speed_cut -= 0.05
                 clips = []
-        self.progressBar(clips[-1][0])
+        bar = self.progress_bar(clips[-1][0])
         for clip in clips:
             # print("clip:",clip)
             bar.update(clip[0])
@@ -302,7 +268,10 @@ class CutMovie(CompareFrame):
         self.delFilesList.append(self.videoInfo)
         self.writeF(f_lst, self.videoInfo)
         self.videoOutput = os.path.join(dir, self.name + "_output" + ".mp4")
-        cmd = '''{} -y -f concat -safe 0 -i "{}" -i "{}" -vcodec copy -filter_complex "[0:a]aformat=sample_fmts=fltp:sample_rates=44100:channel_layouts=stereo,volume=0.2[a0]; [1:a]aformat=sample_fmts=fltp:sample_rates=44100:channel_layouts=stereo,volume=0.5[a1]; [a0][a1]amerge=inputs=2[aout]" -map 0:v  -map "[aout]" -shortest "{}"'''.format(
+        cmd = '''{} -y -f concat -safe 0 -i "{}" -i "{}" -vcodec copy \
+        -filter_complex "[0:a]aformat=sample_fmts=fltp:sample_rates=44100:channel_layouts=stereo,volume=0.2[a0]; \
+        [1:a]aformat=sample_fmts=fltp:sample_rates=44100:channel_layouts=stereo,volume=0.5[a1];\
+         [a0][a1]amerge=inputs=2[aout]" -map 0:v  -map "[aout]" -shortest "{}"'''.format(
             ffmpeg, self.videoInfo, self.bgm, self.videoOutput
         )
         cmd = '''{} -y -f concat -safe 0 -i "{}" -i "{}" -vcodec copy -c:a copy -shortest "{}"'''.format(
@@ -311,8 +280,9 @@ class CutMovie(CompareFrame):
         print("cmd:", cmd)
         os.chdir(dir)
         os.system(cmd)
+        print(f"out video path:{self.videoOutput}")
 
-    def audio_aiCut(self):
+    def audio_auto_cut(self):
         # self.video2audio(self.Movie)
         self.audio_get()
         self.audioDigital(self.Movie)
@@ -320,25 +290,3 @@ class CutMovie(CompareFrame):
             self.video_concat(self.videoPath)
 
 
-def main(dir, video_format="mp4"):
-    if len(sys.argv) >= 3:
-        print("Video path:", sys.argv[1])
-        dir = sys.argv[1]
-    for file in os.listdir(dir):
-        if re.search(video_format, file):
-            file = os.path.join(dir, file)
-            print("cutting video:", file)
-            cut = CutMovie(file)
-            cut.audio_aiCut()
-    print("auto cut all video done!")
-
-
-def test(file):
-    cut = CutMovie(file)
-    cut.audio_aiCut()
-
-
-if __name__ == "__main__":
-    dir = r"D:\Alan\MOVIE\投稿\00"
-    main(dir)
-    # test(file)
