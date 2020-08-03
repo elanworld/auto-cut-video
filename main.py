@@ -1,16 +1,24 @@
 from compare_frame import CompareFrame
 from cut_movie import CutMovie
 from audio_voice import AudioVoice
-from tools import Tools
+from utils import Tools
+import sys
 
 
-class CutMovie(CutMovie, CompareFrame, AudioVoice, Tools):
+class MainCutVideo(CutMovie, CompareFrame, AudioVoice, Tools):
     """run from Main.py"""
+
+    def __init__(self, file):
+        super().__init__(file)
+        if len(sys.argv) >= 3:
+            self.bgmPath = sys.argv[2]
+            print("BGM path:", sys.argv[2])
 
 
 def test(file):
-    cut = CutMovie(file)
+    cut = MainCutVideo(file)
     cut.audio_auto_cut()
+
 
 def main(dir, video_format="mp4"):
     if len(sys.argv) >= 3:
@@ -20,10 +28,11 @@ def main(dir, video_format="mp4"):
         if re.search(video_format, file):
             file = os.path.join(dir, file)
             print("cutting video:", file)
-            cut = CutMovie(file)
+            cut = MainCutVideo(file)
             cut.audio_auto_cut()
     print("auto cut all video done!")
 
+
 if __name__ == "__main__":
-    file = r"F:\Alan\Videos\我的视频\知乎\BBC.Planet.Earth.II.4行星地球精彩片段_Trim.mp4"
+    file = r"F:\Alan\Videos\我的视频\剪辑\zedd-beautiful.mp4"
     test(file)
