@@ -79,6 +79,7 @@ class CompareFrame:
         for index in range(len(hash1)):
             if hash1[index] != hash2[index]:
                 num += 1
+        print(num)
         if num > boundary:
             return False
         return True

@@ -1,14 +1,12 @@
 import os
 import sys
 import re
+import time
 import random
 import subprocess
-import time
 import cv2
-import numpy as np
 
-
-class CutMovie():
+class CutMovie:
     '''Auto cut video'''
 
     def save_ignor(
