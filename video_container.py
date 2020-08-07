@@ -26,12 +26,12 @@ class CaptureContainer:
 
         # need to define
         self.start = 10
-        self.end = self.total * self.rate - 10
+        self.end = self.total / self.rate - 10
         self.saveByFFmpeg = False
 
         self.save_file_num = 0
-        self.strar_frame = self.rate * self.start
-        self.end_frame = self.rate * self.end
+        self.strar_frame = 0
+        self.end_frame = self.total
 
     def short_cut(self):
         frames = []
@@ -39,6 +39,7 @@ class CaptureContainer:
             self.capture.set(cv2.CAP_PROP_POS_FRAMES, self.strar_frame)
             start_frame = self.strar_frame
             end_frame = self.end_frame
+            print("end:",end_frame)
 
             frame_num = int(start_frame)
             success, frame = self.capture.read()
@@ -54,7 +55,7 @@ class CaptureContainer:
                 isSimilar = self.compare.classify_pHash(currentImg, lastImg, boundary=19)
                 duration = (frame_num - start_frame) / self.rate
                 print(duration)
-                if not isSimilar and duration > 10 or duration > 20:
+                if not isSimilar and duration > 15 or duration > 25:
                     self.save_file_num += 1
                     out_file = self.save_file + str(self.save_file_num) + ".mp4"
                     print(out_file)
@@ -86,7 +87,7 @@ class CaptureContainer:
 
     def random_bgm(self):
         import random
-        dir = r"F:\Alan\Music\AutoCutBGM\short"
+        dir = r"F:\Alan\Music\AutoCutBGM\out"
         file_list = [os.path.join(dir, file) for file in os.listdir(dir)]
         random.shuffle(file_list)
         return file_list[0]
@@ -116,6 +117,6 @@ class FFmpeg:
 
 
 if __name__ == '__main__':
-    file = r"F:\Alan\Videos\我的视频\PERFECT FLASH.mp4"
+    file = r"F:\Alan\Videos\我的视频\剪辑\aa.mp4"
     container = CaptureContainer(file)
     container.short_cut()
