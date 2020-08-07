@@ -25,9 +25,9 @@ class CaptureContainer:
         self.save_file = os.path.join(self.save_dir, name + '_')
 
         # need to define
+        self.saveByFFmpeg = True
         self.start = 10
         self.end = self.total / self.rate - 10
-        self.saveByFFmpeg = False
 
         self.save_file_num = 0
         self.strar_frame = 0
@@ -39,7 +39,6 @@ class CaptureContainer:
             self.capture.set(cv2.CAP_PROP_POS_FRAMES, self.strar_frame)
             start_frame = self.strar_frame
             end_frame = self.end_frame
-            print("end:",end_frame)
 
             frame_num = int(start_frame)
             success, frame = self.capture.read()
@@ -54,25 +53,28 @@ class CaptureContainer:
                 lastImg = frame
                 isSimilar = self.compare.classify_pHash(currentImg, lastImg, boundary=19)
                 duration = (frame_num - start_frame) / self.rate
-                print(duration)
-                if not isSimilar and duration > 15 or duration > 25:
-                    self.save_file_num += 1
-                    out_file = self.save_file + str(self.save_file_num) + ".mp4"
-                    print(out_file)
-                    if self.saveByFFmpeg:
-                        self.ffmpeg.cut(self.file,
-                                        out_file,
-                                        start_frame,
-                                        frame_num,
-                                        self.rate)
-                    else:
-                        self.writer.save_video(out_file, frames, self.rate, self.size)
-                        frames.clear()
+                if not isSimilar and duration > 12 or duration > 40:
+                    self.output_control(start_frame, frame_num, self.rate,frames,self.size)
                     start_frame = frame_num + 1
-                    out_video = self.save_file + str(self.save_file_num) + "_audio.mp4"
-                    self.ffmpeg.conbine(out_file, self.random_bgm(), out_video)
-                    os.remove(out_file)
+                    frames.clear()
             self.capture.release()
+
+    def output_control(self, start_frame, frame_num, rate=24,frames=[],size=(1280, 720)):
+        self.save_file_num += 1
+        out_file = self.save_file + str(self.save_file_num) + ".mp4"
+        print(out_file)
+        if self.saveByFFmpeg:
+            self.ffmpeg.cut_size(self.file,
+                            out_file,
+                            start_frame,
+                            frame_num,
+                            self.rate)
+        else:
+            self.writer.save_video(out_file, frames, self.rate, self.size)
+            out_video = self.save_file + str(self.save_file_num) + "_audio.mp4"
+            self.ffmpeg.conbine(out_file, self.random_bgm(), out_video)
+            os.remove(out_file)
+
 
     def mkdir(self, path):
         if not os.path.exists(path):
@@ -110,6 +112,13 @@ class FFmpeg:
         os.system(cmd)
         print(cmd)
 
+    #todo 规范化接口 参数
+    def cut_size(self, filename, save_filename, startFrame=0, stopFrame=1, rate=24):
+        filt = f"-vf crop=600:720:{(1280-600)/2}:0"
+        cmd = f'ffmpeg -y -ss {str(startFrame / rate)} -to {str(stopFrame / rate)} -i "{filename}" {filt} "{save_filename}"'
+        os.system(cmd)
+        print(cmd)
+
     def conbine(self, video, audio, out_file):
         cmd = f'ffmpeg -y -i "{video}" -i "{audio}" -c copy -shortest "{out_file}"'
         os.system(cmd)
@@ -117,6 +126,6 @@ class FFmpeg:
 
 
 if __name__ == '__main__':
-    file = r"F:\Alan\Videos\我的视频\剪辑\aa.mp4"
+    file = r"F:\Alan\Videos\我的视频\selenium_download\Most Awesome Zach King Magic Tricks - New Zach King Magic 2019.mp4"
     container = CaptureContainer(file)
     container.short_cut()
