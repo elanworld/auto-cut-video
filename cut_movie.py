@@ -6,6 +6,7 @@ import random
 import subprocess
 import cv2
 
+
 class CutMovie:
     '''Auto cut video'''
 

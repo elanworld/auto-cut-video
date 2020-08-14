@@ -11,7 +11,7 @@ class CompareFrame:
         for i in range(len(hist1)):
             if hist1[i] != hist2[i]:
                 degree = degree + (
-                    1 - abs(hist1[i] - hist2[i]) / max(hist1[i], hist2[i])
+                        1 - abs(hist1[i] - hist2[i]) / max(hist1[i], hist2[i])
                 )
             else:
                 degree = degree + 1
@@ -40,15 +40,11 @@ class CompareFrame:
         gray2 = cv2.cvtColor(image2, cv2.COLOR_BGR2GRAY)
         hash1 = getHash(gray1)
         hash2 = getHash(gray2)
-        return self.Hamming_distance(hash1, hash2, boundary)
+        return self.Hamming_distance(hash1, hash2)
 
-    def classify_pHash(self, image1, image2, boundary=19):
-
-        try:
-            image1 = cv2.resize(image1, (32, 32))
-            image2 = cv2.resize(image2, (32, 32))
-        except:
-            return False
+    def classify_pHash(self, image1, image2):
+        image1 = cv2.resize(image1, (32, 32))
+        image2 = cv2.resize(image2, (32, 32))
         gray1 = cv2.cvtColor(image1, cv2.COLOR_BGR2GRAY)
         gray2 = cv2.cvtColor(image2, cv2.COLOR_BGR2GRAY)
 
@@ -59,7 +55,7 @@ class CompareFrame:
         dct2_roi = dct2[0:8, 0:8]
         hash1 = self.getHash(dct1_roi)
         hash2 = self.getHash(dct2_roi)
-        return self.Hamming_distance(hash1, hash2, boundary)
+        return self.Hamming_distance(hash1, hash2)
 
     def getHash(self, image):
 
@@ -73,12 +69,10 @@ class CompareFrame:
                     hash.append(0)
         return hash
 
-    def Hamming_distance(self, hash1, hash2, boundary):
-
+    def Hamming_distance(self, hash1, hash2):
         num = 0
         for index in range(len(hash1)):
             if hash1[index] != hash2[index]:
                 num += 1
-        if num > boundary:
-            return False
-        return True
+        print(num)
+        return num

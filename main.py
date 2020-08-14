@@ -24,6 +24,8 @@ def main(dir, video_format="mp4"):
     if len(sys.argv) >= 3:
         print("Video path:", sys.argv[1])
         dir = sys.argv[1]
+        print("BGM path:", sys.argv[2])
+        self.bgmPath = sys.argv[2]
     for file in os.listdir(dir):
         if re.search(video_format, file):
             file = os.path.join(dir, file)
@@ -34,5 +36,5 @@ def main(dir, video_format="mp4"):
 
 
 if __name__ == "__main__":
-    file = r"F:\Alan\Videos\我的视频\剪辑\zedd-beautiful.mp4"
-    test(file)
+    dir = r"F:\Alan\Videos\Mine"
+    main(dir)
