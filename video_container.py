@@ -3,7 +3,7 @@ from compare_frame import CompareFrame
 import os
 import re
 import subprocess
-
+from ffmpeg_box import FFmpegBox
 
 class CaptureContainer:
     def __init__(self, file):
@@ -18,7 +18,7 @@ class CaptureContainer:
     def __prepare(self):
         self.writer = WriterContainer()
         self.compare = CompareFrame()
-        self.ffmpeg = FFmpeg()
+        self.ffmpeg = FFmpegBox()
         self.capture = cv2.VideoCapture(self.file)
         self.width = self.capture.get(int(cv2.CAP_PROP_FRAME_WIDTH))
         self.height = self.capture.get(int(cv2.CAP_PROP_FRAME_HEIGHT))
@@ -54,15 +54,16 @@ class CaptureContainer:
 
     def __output_control(self, start_frame, frame_num, rate=24, frames=[], size=(1280, 720)):
         if self.saveByFFmpeg:
-            self.ffmpeg.cut(self.file,
+            start = start_frame / self.rate
+            end = frame_num / self.rate
+            self.ffmpeg.clip(self.file,
                             self.__get_outpath(self.file),
-                            start_frame,
-                            frame_num,
-                            self.rate)
+                             start,
+                             end)
         else:
             save_first = self.__get_outpath(self.file)
             self.writer.save_video(save_first, frames, self.rate, self.size)
-            self.ffmpeg.conbine(self.__get_outpath(self.file), self.__random_bgm(), out_video)
+            self.ffmpeg.mix(self.__get_outpath(self.file), self.__random_bgm(), out_video)
             os.remove(save_first)
 
     def __get_outpath(self, file):
@@ -96,19 +97,3 @@ class WriterContainer:
         return True
 
 
-class FFmpeg:
-    def cut(self, filename, save_filename, startFrame=0, stopFrame=1, rate=24):
-        cmd = f'ffmpeg -y -ss {str(startFrame / rate)} -to {str(stopFrame / rate)} -i "{filename}" "{save_filename}"'
-        os.system(cmd)
-        print(cmd)
-
-    def cut_crop(self, filename, save_filename, startFrame=0, stopFrame=1, rate=24):
-        filt = f"-vf crop=600:720:{(1280 - 600) / 2}:0"
-        cmd = f'ffmpeg -y -ss {str(startFrame / rate)} -to {str(stopFrame / rate)} -i "{filename}" {filt} "{save_filename}"'
-        os.system(cmd)
-        print(cmd)
-
-    def conbine(self, video, audio, out_file):
-        cmd = f'ffmpeg -y -i "{video}" -i "{audio}" -c copy -shortest "{out_file}"'
-        os.system(cmd)
-        print(cmd)

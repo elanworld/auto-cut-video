@@ -66,8 +66,6 @@ class AudioVoice:
         mcff = librosa.feature.mfcc(y=y, sr=sr, n_mfcc=1)
         self.framerate = sr
         self.nframes = len(y)
-        # self.matplot(mcff[0])
-        # self.matplot(y)
         return wav_time, y
 
     def audio2data(self, wav):
@@ -99,7 +97,6 @@ class AudioVoice:
             time_arr = np.append(time_arr, t)
             speed_arr = np.append(speed_arr, speed)
         speed_arr = speed_arr / np.max(speed_arr)
-        # self.matplot(time_arr,speed_arr)
         # 筛选符合时间段
         clips = []
         speed_cut = 1.0
@@ -129,13 +126,6 @@ class AudioVoice:
             self.cut_video(self.Movie, clip[0], clip[-1], cvSave=self.cvSave)
         bar.finish()
         # print(self.video_splt_time)
-
-    def matplot(self, y_lst, x_lst=None):
-        # plot audio character
-        if x_lst is None:
-            x_lst = range(len(y_lst))
-        plt.plot(x_lst, y_lst)
-        plt.show()
 
 
 if __name__ == "__main__":

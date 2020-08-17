@@ -1,4 +1,4 @@
-from utils import Tools
+from util import Tools
 from video_container import CaptureContainer
 import sys
 
@@ -18,5 +18,5 @@ class MainShortCut(CaptureContainer):
 
 
 if __name__ == '__main__':
-    file = r"F:\Alan\Videos\Mine\PERFECT FLASH.mp4"
+    file = r"F:\Alan\Videos\Mine\New.mp4"
     MainShortCut(file)
