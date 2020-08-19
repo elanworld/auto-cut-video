@@ -42,17 +42,16 @@ class AudioBox:
             data[i] *= percent
         return data
 
-    def get_time(self, audio_data, duration):
+    def time_get(self, audio_data, duration):
         time = np.arange(0, len(audio_data)) * (duration / len(audio_data))
         return time
 
-    """
-    @:param data: need clip data
-    @:param height: collecte data what is > height
-    @:return index of collection data clips
-    """
-
     def clip_data(self, data, height=0.2):
+        """
+        @:param data: need clip data
+        @:param height: collecte data what is > height
+        @:return index of collection data clips
+        """
         if len(data) == 0:
             raise Exception("data is empty")
         height_list = []
@@ -74,6 +73,28 @@ class AudioBox:
             if height_list[-1] - height_list[-2] == 1 and len(height_list) > 2:
                 clips.append([height_list[start], height_list[-1]])
             return clips
+
+    def time_edge_processs(self, time_clips, gap=0.5):
+        """
+        时间切片圆润处理
+        :param time_clips: 时间切片list[list[1,2],...]
+        :param addition: 圆润时间角度
+        :return: 新的时间切片
+        """
+        for time in time_clips:
+            if len(time) < 2:
+                raise Exception("time list in time_clips is not complete")
+        new_clips = [time_clips[0]]
+        for i in range(1, len(time_clips)):
+            before = new_clips[-1]
+            after = time_clips[i]
+            if after[0] - before[1] > gap:
+                after = [after[0]-gap/2,after[1] + gap /2]
+                new_clips.append(after)
+            else:
+                end = after[1] + gap /2
+                new_clips[-1][1] = end
+        return new_clips
 
     def matplot(self, y_lst, x_lst=None):
         # plot audio character

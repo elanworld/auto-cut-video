@@ -142,13 +142,6 @@ class CutMovie:
                     frameToStart = currentFrame + 1
             capture.release()
 
-    def video2audio(self, file):
-        ffmpeg = "ffmpeg"
-        print(file, self.Audio)
-        cmd = '''%s -y -i "%s" -acodec pcm_s16le "%s"''' % (ffmpeg, file, self.Audio)
-        print(cmd)
-        os.system(cmd)
-
     def video_concat(self, dir):
         ffmpeg = "ffmpeg"
         f_lst = []

@@ -1,51 +1,83 @@
 from audio_box import AudioBox
 import numpy as np
 import os
+from python_box import FileSys
+from ffmpeg_box import FFmpegBox
 
 
 class SpeechRecognize:
-    def __init__(self, audio):
-        self.audio = audio
+    def __init__(self, file):
         self.audio_box = AudioBox()
-        self.y, self.time_data = self.audio_box.audio2dataByRosa(audio)
+        self.ffmpeg = FFmpegBox()
+        self.tools = FileSys()
+
+        self.file = file
+        self.y, self.time = self.audio_box.audio2dataByRosa(self.file)
         self.rate = self.audio_box.framerate
 
         # need define
-        self.__paint_audio = True
-        self.speech_height = 0.2
-        self.smallest_split = 0.5
+        self.__paint_audio = False
+        self.speech_height = 0.1
+        self.smallest_split = 0.01
 
-    def paint(self):
-        self.audio_box.matplot(self.y)
+    def __paint(self):
+        self.audio_box.matplot(self.y, self.time)
 
-    def sharp(self):
+    def __sharp(self):
         self.y = abs(self.y)
         self.y = self.audio_box.avg_data(self.y, int(self.rate * self.smallest_split))
         self.y = self.audio_box.balance(self.y)
-        self.time = self.audio_box.get_time(self.y, self.time_data[-1])
+        self.time = self.audio_box.time_get(self.y, self.time[-1])
+
+    def __get_clips(self):
+        clip_index = self.audio_box.clip_data(self.y, self.speech_height)
+        time_clips = []
+        for clip in clip_index:
+            time_clips.append([self.time[clip[0]], self.time[clip[1]]])
+        new_time_clips = self.audio_box.time_edge_processs(time_clips)
+        return new_time_clips
+
+    def concat_video(self, files, outfile):
+        from moviepy import editor
+        audio_format = ["mp3","wav","m4a"]
+        is_audio = False
+        for format in audio_format:
+            if format in files[0]:
+                is_audio = True
+        clips = []
+        if is_audio:
+            for file in files:
+                clip = editor.AudioFileClip(file)
+                clips.append(clip)
+            audioclips = editor.concatenate_audioclips(clips)
+            audioclips.write_audiofile(outfile)
+        else:
+            for file in files:
+                clip = editor.VideoFileClip(file)
+                clips.append(clip)
+            videoclips = editor.concatenate_videoclips(clips)
+            videoclips.write_videofile(outfile)
+
+    def __cut_clips(self, time_clips):
+        files = []
+        for clip in time_clips:
+            outpath = self.tools.get_outpath(self.file)
+            # self.ffmpeg.clip(self.file, outpath, clip[0], clip[1])
+            files.append(outpath)
+        return files
 
     def recognize(self):
-        self.sharp()
+        self.__sharp()
         if self.__paint_audio:
-            self.paint()
-        clip_index = self.audio_box.clip_data(self.y, self.speech_height)
-        clips_time = []
-        for clip in clip_index:
-            clips_time.append([self.time[clip[0]], self.time[clip[1]]])
-        from util import Tools
-        from ffmpeg_box import FFmpegBox
-        ffmpeg = FFmpegBox()
-        tools = Tools()
-        outfiles = []
-        for clip in clips_time:
-            outfile = tools.get_outpath(self.audio)
-            outfiles.append(outfile)
-            ffmpeg.clip(self.audio, outfile, clip[0], clip[1])
-        dir, name, ext = tools.split_path(self.audio)
-        ffmpeg.join(outfiles, os.path.join(dir, name + "_speech" + ext))
-
+            self.__paint()
+        time_clips = self.__get_clips()
+        files = self.__cut_clips(time_clips)
+        dir, name, ext = self.tools.split_path(self.file)
+        out_file = os.path.join(dir, name + "_speech" + ext)
+        # self.concat_video(files, outfile)
+        self.ffmpeg.concat(files,out_file)
 
 if __name__ == '__main__':
-    file = r"F:\Alan\Videos\电影\audio_read.wav"
+    file = r"F:\Alan\Videos\Mine\talk.mp3"
     box = SpeechRecognize(file)
     box.recognize()

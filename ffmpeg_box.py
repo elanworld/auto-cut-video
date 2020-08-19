@@ -1,8 +1,14 @@
 import re
 import os
+import sys
+import python_box
 
 
 class FFmpegBox:
+    def __init__(self):
+        self.ffmpeg = "ffmpeg"
+        self.file_sys = python_box.FileSys()
+
     def clip(self, filename, save_filename, start, stop):
         cmd = f'ffmpeg -y -i "{filename}" -ss {str(start)} -to {str(stop)} "{save_filename}"'
         print(cmd)
@@ -21,6 +27,23 @@ class FFmpegBox:
 
     def join(self, file_lst, out_file):
         jion_file = "-i " + " -i ".join(file_lst)
-        cmd = f"ffmpeg -y {jion_file} -filter_complex [0:0]concat=n={len(file_lst)}:v=0:a=1[out] -map [out] {out_file}"
+        cmd = f"ffmpeg -y {jion_file} -filter_complex concat=n={len(file_lst)}:v=1:a=1[outv][outa] -map [outv] -map [outa] {out_file}"
+        print(cmd)
+        os.system(cmd)
+
+    def concat(self, file_list, out_file):
+        txt_list = []
+        for file in file_list:
+            file = "file '{}'".format(file)
+            txt_list.append(file)
+        ffmpeg_files = os.path.join(os.environ["TEMP"], "ffmpeg_file_list.txt")
+        self.file_sys.write_file(txt_list, ffmpeg_files)
+        cmd = f"{self.ffmpeg} -y -f concat -safe 0 -i {ffmpeg_files} -c copy {out_file}"
+        print(cmd)
+        os.system(cmd)
+        os.remove(ffmpeg_files)
+
+    def video_to_audio(self, video):
+        cmd = '%s -y -i "%s" -acodec pcm_s16le "%s"' % (self.ffmpeg, video, audio)
         print(cmd)
         os.system(cmd)
