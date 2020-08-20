@@ -16,7 +16,7 @@ class SpeechRecognize:
         self.rate = self.audio_box.framerate
 
         # need define
-        self.__paint_audio = False
+        self.__paint_audio = True
         self.speech_height = 0.1
         self.smallest_split = 0.01
 
@@ -62,7 +62,10 @@ class SpeechRecognize:
         files = []
         for clip in time_clips:
             outpath = self.tools.get_outpath(self.file)
-            # self.ffmpeg.clip(self.file, outpath, clip[0], clip[1])
+            if not os.path.exists(outpath):
+                self.ffmpeg.clip(self.file, outpath, clip[0], clip[1])
+                if not os.path.exists(outpath):
+                    continue
             files.append(outpath)
         return files
 
@@ -74,10 +77,9 @@ class SpeechRecognize:
         files = self.__cut_clips(time_clips)
         dir, name, ext = self.tools.split_path(self.file)
         out_file = os.path.join(dir, name + "_speech" + ext)
-        # self.concat_video(files, outfile)
         self.ffmpeg.concat(files,out_file)
 
 if __name__ == '__main__':
-    file = r"F:\Alan\Videos\Mine\talk.mp3"
+    file = r"G:\Alan\Documents\录音\java基础.m4a"
     box = SpeechRecognize(file)
     box.recognize()
