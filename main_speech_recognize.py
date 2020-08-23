@@ -1,7 +1,6 @@
 from audio_box import AudioBox
-import numpy as np
 import os
-from python_box import FileSys
+from common.python_box import FileSys
 from ffmpeg_box import FFmpegBox
 
 
@@ -12,7 +11,7 @@ class SpeechRecognize:
         self.tools = FileSys()
 
         self.file = file
-        self.y, self.time = self.audio_box.audio2dataByRosa(self.file)
+        self.y, self.time = self.audio_box.audio2data_rosa(self.file)
         self.rate = self.audio_box.framerate
 
         # need define

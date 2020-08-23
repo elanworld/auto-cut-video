@@ -2,16 +2,11 @@ from moviepy.editor import *
 from moviepy.video.fx.speedx import speedx
 import wave
 import numpy as np
-import os
 import re
-import datetime
-import sys
-import time
 from progressbar import *
-import python_box
+from common import python_box
 
-tool = python_box.Tool()
-
+tool = python_box.PythonBox()
 
 class FfmpegPlugin:
     def __init__(self):
@@ -24,7 +19,7 @@ class FfmpegPlugin:
         print(time.time() - self.t)
 
     def video2audio(self, dir):
-        f_lst = tool.flst(dir, "mp4$")
+        f_lst = tool.dir_list(dir, "mp4$")
         for file in f_lst:
             wav = re.sub("mp4", "", file) + "wav"
             print(file, wav)
@@ -33,7 +28,7 @@ class FfmpegPlugin:
             os.system(cmd)
 
     def audio_split(self):
-        f_lst = tool.flst(dir, "mp3$")
+        f_lst = tool.dir_list(dir, "mp3$")
         for file in f_lst:
             seconds = 0
             while 1:
@@ -83,11 +78,11 @@ class FfmpegPlugin:
     def video_concat(self, dir):
         os.chdir(dir)
         f_lst = []
-        for file in tool.flst(dir, "mp4", listdir=True):
+        for file in tool.dir_list(dir, "mp4"):
             file = "file '{}'".format(file)
             f_lst.append(file)
         videoInfo = dir + "/videoInfo.txt"
-        tool.writeF(f_lst, videoInfo)
+        tool.write_file(f_lst, videoInfo)
         cmd = '''{} -f concat -i {} -c copy {}output.mp4'''.format(ffmpeg, videoInfo, dir + "/")
         print(cmd)
         os.chdir(dir)
@@ -96,7 +91,6 @@ class FfmpegPlugin:
 
     def detect(self, file):
         ffmpeg = "ffmpeg"
-        import random
         start = 0
         i = 1
 
@@ -113,10 +107,11 @@ class FfmpegPlugin:
 
 class MovieLib(FfmpegPlugin):
     def __init__(self, dir):
+        super().__init__()
         self.dir = dir
         self.last_dir = os.path.split(dir)[0]
-        self.image = tool.flst(dir, "jpg")
-        self.audio_lst = tool.flst(self.last_dir + "/bgm", "mp3")
+        self.image = tool.dir_list(dir, "jpg")
+        self.audio_lst = tool.dir_list(self.last_dir + "/bgm", "mp3")
         self.imageVideo = self.last_dir + "/pic2video.mp4"
         self.imageAudio = self.last_dir + "/pic2video.wav"
         self.videoSpeed = self.last_dir + "/picSpeed.mp4"
@@ -129,7 +124,7 @@ class MovieLib(FfmpegPlugin):
 
     def movie_concat(self, dir):  # 合并后衔接处卡顿重复
         outPath = dir + "/concatVideo.mp4"
-        f_lst = tool.flst(dir, "mp4")
+        f_lst = tool.dir_list(dir, "mp4")
         videoClips = []
         for file in f_lst:
             videoClip = VideoFileClip(file)
@@ -351,12 +346,10 @@ class MovieLib(FfmpegPlugin):
         """
         批量图片合成clip
         通过bgm识别播放节奏，生成新的clip
-        比较调整前后效果
         :return:
         """
         self.imageToclip()
         self.audio_anlysis()
-        self.movie_compare()
 
 
 if __name__ == "__main__":

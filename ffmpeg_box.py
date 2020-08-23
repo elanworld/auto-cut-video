@@ -1,7 +1,5 @@
-import re
 import os
-import sys
-import python_box
+from common import python_box
 
 
 class FFmpegBox:
@@ -43,7 +41,7 @@ class FFmpegBox:
         os.system(cmd)
         os.remove(ffmpeg_files)
 
-    def video_to_audio(self, video):
+    def video_to_audio(self, video, audio):
         cmd = '%s -y -i "%s" -acodec pcm_s16le "%s"' % (self.ffmpeg, video, audio)
         print(cmd)
         os.system(cmd)

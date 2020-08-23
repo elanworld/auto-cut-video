@@ -5,7 +5,7 @@ from matplotlib import pyplot as plt
 
 
 class AudioBox:
-    def audio2dataByRosa(self, audio):
+    def audio2data_rosa(self, audio):
         y, sr = librosa.load(audio, sr=None)
         wav_time = np.arange(0, len(y)) * (1.0 / sr)
         self.mcff = librosa.feature.mfcc(y=y, sr=sr, n_mfcc=1)
@@ -19,12 +19,12 @@ class AudioBox:
         nchannels, sampwidth, framerate, nframes = params[:4]
         strData = f.readframes(nframes)
         f.close()
-        waveData = np.fromstring(strData, dtype=np.short)
-        waveData.shape = -1, 2
-        waveData = waveData.T
-        waveData = waveData[0]
+        wave_data = np.fromstring(strData, dtype=np.short)
+        wave_data.shape = -1, 2
+        wave_data = wave_data.T
+        wave_data = wave_data[0]
         audioTime = np.arange(0, nframes) * (1.0 / framerate)
-        return waveData, audioTime
+        return wave_data, audioTime
 
     def avg_data(self, data, ratio=10):
         size = len(data)
@@ -78,7 +78,7 @@ class AudioBox:
         """
         时间切片圆润处理
         :param time_clips: 时间切片list[list[1,2],...]
-        :param addition: 圆润时间角度
+        :param gap: 圆润时间角度
         :return: 新的时间切片
         """
         for time in time_clips:
@@ -89,10 +89,10 @@ class AudioBox:
             before = new_clips[-1]
             after = time_clips[i]
             if after[0] - before[1] > gap:
-                after = [after[0]-gap/2,after[1] + gap /2]
+                after = [after[0] - gap / 2, after[1] + gap / 2]
                 new_clips.append(after)
             else:
-                end = after[1] + gap /2
+                end = after[1] + gap / 2
                 new_clips[-1][1] = end
         return new_clips
 
