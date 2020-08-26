@@ -5,6 +5,9 @@ from matplotlib import pyplot as plt
 
 
 class AudioBox:
+    """
+    common method about audio
+    """
     def audio2data_rosa(self, audio):
         y, sr = librosa.load(audio, sr=None)
         wav_time = np.arange(0, len(y)) * (1.0 / sr)
@@ -36,10 +39,34 @@ class AudioBox:
         return new_data
 
     def balance(self, data):
+        """
+        balance all data to 0-1
+        :param data:
+        :return:
+        """
         max_data = max(data)
         percent = 1 / max_data
         for i in range(len(data)):
             data[i] *= percent
+        return data
+
+    def optimiza_data(self, data:list):
+        """
+        remove 1% big data
+        :param data:
+        :return:
+        """
+        copy = data.copy()
+        size = len(copy)
+        index_list = []
+        for i in range(int(size/100)):
+            max_big = max(copy)
+            index = copy.index(max_big)
+            copy[index] = 0
+            index_list.append(index)
+        max_small = max(copy)
+        for max_index in index_list:
+            data[max_index] = max_small
         return data
 
     def time_get(self, audio_data, duration):

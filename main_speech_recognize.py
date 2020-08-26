@@ -26,6 +26,8 @@ class SpeechRecognize:
         self.y = abs(self.y)
         self.y = self.audio_box.avg_data(self.y, int(self.rate * self.smallest_split))
         self.y = self.audio_box.balance(self.y)
+        self.y = self.audio_box.optimiza_data(self.y)
+        self.y = self.audio_box.balance(self.y)
         self.time = self.audio_box.time_get(self.y, self.time[-1])
 
     def __get_clips(self):
@@ -68,17 +70,19 @@ class SpeechRecognize:
             files.append(outpath)
         return files
 
-    def recognize(self):
+    def run(self):
         self.__sharp()
         if self.__paint_audio:
             self.__paint()
         time_clips = self.__get_clips()
-        files = self.__cut_clips(time_clips)
+        time_clips = time_clips[:2]
         dir, name, ext = self.tools.split_path(self.file)
         out_file = os.path.join(dir, name + "_speech" + ext)
+        # self.ffmpeg.trim(self.file, out_file, time_clips)
+        files = self.__cut_clips(time_clips)
         self.ffmpeg.concat(files,out_file)
 
 if __name__ == '__main__':
-    file = r"G:\Alan\Documents\录音\java基础.m4a"
+    file = input("请输入路径:")
     box = SpeechRecognize(file)
-    box.recognize()
+    box.run()

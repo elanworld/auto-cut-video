@@ -29,6 +29,40 @@ class FFmpegBox:
         print(cmd)
         os.system(cmd)
 
+    def trim(self, file, outfile, time_list:list):
+        # todo
+        """
+        concat multiple clip from nultiple times in one file
+        :param file:
+        :param time_list:
+        :return:
+        """
+        vtrims = []
+        atrims = []
+        cvtrims = []
+        catrims = []
+        size = len(time_list)
+        for i in range(size):
+            vtrim = f"[0:v]trim={time_list[i][0]}:{time_list[i][1]},setpts=PTS-STARTPTS[v{i}]"
+            atrim = f"[0]atrim={time_list[i][0]}:{time_list[i][1]}[a{i}]"
+            cvtrim = f"[v{i}]"
+            catrim = f"[a{i}]"
+            vtrims.append(vtrim)
+            atrims.append(atrim)
+            cvtrims.append(cvtrim)
+            catrims.append(catrim)
+        vjoin = ";".join(vtrims)
+        ajoin = ";".join(atrims)
+        cvjoin = "".join(cvtrims) + f"concat={size}[v]"
+        cajoin = "".join(catrims) + f"concat={size}:v=0:a={size}[a]"
+        trims_join = vjoin + ";" + ajoin +";" +  cvjoin + ";" + cajoin + " -map [v] -map [a]"
+        cmd = f"ffmpeg -y -i {file} -filter_complex {trims_join} {outfile}"
+        print(cmd)
+        os.system(cmd)
+
+
+
+
     def concat(self, file_list, out_file):
         txt_list = []
         for file in file_list:
