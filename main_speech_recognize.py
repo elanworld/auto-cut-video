@@ -15,7 +15,7 @@ class SpeechRecognize:
         self.rate = self.audio_box.framerate
 
         # need define
-        self.__paint_audio = True
+        self.__paint_audio = False
         self.speech_height = 0.1
         self.smallest_split = 0.01
 
@@ -75,12 +75,11 @@ class SpeechRecognize:
         if self.__paint_audio:
             self.__paint()
         time_clips = self.__get_clips()
-        time_clips = time_clips[:2]
         dir, name, ext = self.tools.split_path(self.file)
         out_file = os.path.join(dir, name + "_speech" + ext)
-        # self.ffmpeg.trim(self.file, out_file, time_clips)
-        files = self.__cut_clips(time_clips)
-        self.ffmpeg.concat(files,out_file)
+        self.ffmpeg.select(self.file, out_file, time_clips)
+        # files = self.__cut_clips(time_clips)
+        # self.ffmpeg.concat(files,out_file)
 
 if __name__ == '__main__':
     file = input("请输入路径:")

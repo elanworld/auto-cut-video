@@ -29,8 +29,7 @@ class FFmpegBox:
         print(cmd)
         os.system(cmd)
 
-    def trim(self, file, outfile, time_list:list):
-        # todo
+    def trim(self, file, outfile, time_list: list):
         """
         concat multiple clip from nultiple times in one file
         :param file:
@@ -39,29 +38,40 @@ class FFmpegBox:
         """
         vtrims = []
         atrims = []
-        cvtrims = []
-        catrims = []
+        concat_vas = []
         size = len(time_list)
         for i in range(size):
-            vtrim = f"[0:v]trim={time_list[i][0]}:{time_list[i][1]},setpts=PTS-STARTPTS[v{i}]"
+            vtrim = f"[0:v]trim={time_list[i][0]}:{time_list[i][1]}[v{i}]"
             atrim = f"[0]atrim={time_list[i][0]}:{time_list[i][1]}[a{i}]"
-            cvtrim = f"[v{i}]"
-            catrim = f"[a{i}]"
+            concat_va = f"[v{i}][a{i}]"
             vtrims.append(vtrim)
             atrims.append(atrim)
-            cvtrims.append(cvtrim)
-            catrims.append(catrim)
+            concat_vas.append(concat_va)
         vjoin = ";".join(vtrims)
         ajoin = ";".join(atrims)
-        cvjoin = "".join(cvtrims) + f"concat={size}[v]"
-        cajoin = "".join(catrims) + f"concat={size}:v=0:a={size}[a]"
-        trims_join = vjoin + ";" + ajoin +";" +  cvjoin + ";" + cajoin + " -map [v] -map [a]"
+        cvjoin = "".join(concat_vas) + f"concat={size}:v=1:a=1[v][a]"
+        trims_join = vjoin + ";" + ajoin + ";" + cvjoin + " -map [v] -map [a]"
         cmd = f"ffmpeg -y -i {file} -filter_complex {trims_join} {outfile}"
         print(cmd)
         os.system(cmd)
 
-
-
+    def select(self, file, outfile, time_list: list):
+        """
+        concat multiple clip from nultiple times in one file
+        :param file:
+        :param time_list:
+        :return:
+        """
+        selects = []
+        size = len(time_list)
+        for i in range(size):
+            select = f"between(t,{time_list[i][0]},{time_list[i][1]})"
+            selects.append(select)
+        selects = "+".join(selects)
+        trims_join = "select='" + selects + "',setpts=N/FRAME_RATE/TB;aselect='" + selects + "',asetpts=N/SR/TB"
+        cmd = f"ffmpeg -y -i \"{file}\" -filter_complex {trims_join} \"{outfile}\""
+        print(cmd)
+        os.system(cmd)
 
     def concat(self, file_list, out_file):
         txt_list = []
