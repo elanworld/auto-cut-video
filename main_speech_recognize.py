@@ -1,7 +1,12 @@
-from audio_box import AudioBox
 import os
+import sys
+
+parent = os.path.split(os.getcwd())[0]
+sys.path.append(parent)
+
 from common.python_box import FileSys
 from ffmpeg_box import FFmpegBox
+from audio_box import AudioBox
 
 
 class SpeechRecognize:
@@ -18,6 +23,23 @@ class SpeechRecognize:
         self.__paint_audio = False
         self.speech_height = 0.1
         self.smallest_split = 0.01
+
+        self._prepare()
+
+    def __del__(self):
+        for file in self.clean_file:
+            if os.path.exists(file):
+                os.remove(file)
+
+    def _prepare(self):
+        self.clean_file = []
+        parent, name, ext = self.tools.split_path(self.file)
+        if ext in [".mp4"]:
+            self.is_video = True
+        else:
+            self.is_video = False
+        self.out_file = os.path.join(parent, name + "_speech" + ext)
+        self.temp = os.path.join(parent, name + "_temp" + ext)
 
     def __paint(self):
         self.audio_box.matplot(self.y, self.time)
@@ -40,7 +62,7 @@ class SpeechRecognize:
 
     def concat_video(self, files, outfile):
         from moviepy import editor
-        audio_format = ["mp3","wav","m4a"]
+        audio_format = ["mp3", "wav", "m4a"]
         is_audio = False
         for format in audio_format:
             if format in files[0]:
@@ -70,16 +92,45 @@ class SpeechRecognize:
             files.append(outpath)
         return files
 
+    def _get_clips_silence(self, time_clips: list):
+        time_clips_silence = []
+        for i in range((len(time_clips) - 1)):
+            print(time_clips[i], time_clips[i + 1])
+            last = time_clips[i][1]
+            current = time_clips[i + 1][0]
+            time_clips_silence.append([last, current])
+        return time_clips_silence
+
+    def _denoising(self, time_clips: list):
+        silence = self._get_clips_silence(time_clips)
+        outwav = "out_file.wav"
+        noise = "noise.wav"
+        config = "noise.prof"
+        outwav_clean = "out_clean.wav"
+        for file in [outwav, noise, config, outwav_clean, self.temp]:
+            self.clean_file.append(file)
+        self.ffmpeg.set_input(self.file).set_fiter_select(time_clips, False).set_output(outwav).run()
+        self.ffmpeg.set_fiter_select(silence, False).set_output(noise).run()
+        cmd = f"sox {noise} -n noiseprof {config}"
+        print(cmd)
+        os.system(cmd)
+        cmd = f"sox {outwav} {outwav_clean} noisered noise.prof 0.21"
+        print(cmd)
+        os.system(cmd)
+        if self.is_video:
+            self.ffmpeg.set_input(self.file).set_fiter_select(time_clips).set_output(self.temp).run()
+            self.ffmpeg.clear().set_input_mul([self.temp, outwav_clean]). \
+                set_output(self.out_file).set_map("-map 0:v -map 1:a").run()
+        else:
+            self.ffmpeg.set_input(outwav_clean).set_output(self.out_file).run()
+
     def run(self):
         self.__sharp()
         if self.__paint_audio:
             self.__paint()
         time_clips = self.__get_clips()
-        dir, name, ext = self.tools.split_path(self.file)
-        out_file = os.path.join(dir, name + "_speech" + ext)
-        self.ffmpeg.select(self.file, out_file, time_clips)
-        # files = self.__cut_clips(time_clips)
-        # self.ffmpeg.concat(files,out_file)
+        self._denoising(time_clips)
+
 
 if __name__ == '__main__':
     file = input("请输入路径:")

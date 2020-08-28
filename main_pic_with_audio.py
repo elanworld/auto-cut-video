@@ -48,7 +48,7 @@ class FfmpegPlugin:
                 if size == 0:
                     break
 
-    def video_split(self, file):  # faster than moviepy
+    def video_split(self, file):
         mp4 = file
         mp4_split = re.sub(".mp4", "", file) + "_split.mp4"
         start = "0:0:9"
@@ -58,22 +58,6 @@ class FfmpegPlugin:
             ffmpeg=ffmpeg, start=start, end=end, mp4_split=mp4_split, mp4=mp4)
         print(cmd)
         os.system(cmd)
-
-    def video_splt(self, file):
-        split_dir = os.path.split(file)[0] + "/split"
-        if not os.path.exists(split_dir):
-            os.mkdir(split_dir)
-        mp4 = file
-        i = 1
-        while i < 35:
-            mp4_split = split_dir + "/split_" + str(i) + ".mp4"
-            cmd = '''{ffmpeg} -y -ss {start} -t {end} -i "{mp4}" -vcodec h264  -acodec copy "{mp4_split}"'''.format(
-                ffmpeg=ffmpeg,
-                start=str(i), end=str(5.0), mp4_split=mp4_split, mp4=mp4)  # video codec change to h264
-            print(cmd)
-            os.system(cmd)
-            i += 5.0
-        return split_dir
 
     def video_concat(self, dir):
         os.chdir(dir)
@@ -88,21 +72,6 @@ class FfmpegPlugin:
         os.chdir(dir)
         os.system(cmd)
         os.remove(videoInfo)
-
-    def detect(self, file):
-        ffmpeg = "ffmpeg"
-        start = 0
-        i = 1
-
-        mp4 = file
-        while start < 10:
-            mp4_split = os.path.split(file)[0] + "/dd/" + str(i) + ".mp4"
-            cmd = '''{ffmpeg} -y -ss {start} -t {end} -i "{mp4}" -vcodec copy -acodec copy "{mp4_split}"'''.format(
-                ffmpeg=ffmpeg, start=start, end="1.3465", mp4_split=mp4_split, mp4=mp4)
-            print(cmd)
-            os.system(cmd)
-            i += 1
-            start += 1.3465
 
 
 class MovieLib(FfmpegPlugin):
