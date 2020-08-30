@@ -27,9 +27,9 @@ class SpeechRecognize:
         self._prepare()
 
     def __del__(self):
-        for file in self.clean_file:
-            if os.path.exists(file):
-                os.remove(file)
+        for f in self.clean_file:
+            if os.path.exists(f):
+                os.remove(f)
 
     def _prepare(self):
         self.clean_file = []
@@ -123,6 +123,13 @@ class SpeechRecognize:
                 set_output(self.out_file).set_map("-map 0:v -map 1:a").run()
         else:
             self.ffmpeg.set_input(outwav_clean).set_output(self.out_file).run()
+
+    def get_time_clips(self):
+        self.__sharp()
+        if self.__paint_audio:
+            self.__paint()
+        time_clips = self.__get_clips()
+        return time_clips
 
     def run(self):
         self.__sharp()
