@@ -6,15 +6,9 @@ from py4j.java_gateway import JavaGateway
 
 class JavaServer(object):
 
-    def run(self, package, class_name=None, method_name=None, parm1=None, parm2=None):
-        # todo import var name package
-        print(sys.path)
-        import main
-        package_name = package
-        try:
-            import package_name
-        except:
-            print(None)
+    def run(self, *args):
+        for arg in args:
+            exec(args)
 
     def shutdown(self):
         client_server.close()
