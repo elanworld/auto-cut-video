@@ -1,4 +1,3 @@
-import sys
 from py4j.clientserver import ClientServer, JavaParameters, PythonParameters
 from py4j.java_collections import JavaList, ListConverter
 from py4j.java_gateway import JavaGateway
