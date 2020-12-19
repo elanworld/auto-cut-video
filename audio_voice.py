@@ -10,20 +10,24 @@ import matplotlib.pyplot as plt
 
 
 class AudioVoice:
+    """
+    根据音频节奏筛选片段
+    """
+
     def __init__(self, file):
         self.cvSave = True
         self.randomClip = False
         self.start = time.time()
         self.delFilesList = []
         self.Movie = file
-        dir = os.path.split(file)[0]
-        self.bgmPath = os.path.join(dir, "Auto_Cut_BGM")
+        directory = os.path.split(file)[0]
+        self.bgmPath = os.path.join(directory, "Auto_Cut_BGM")
         self.bgmPath = r"F:\Alan\Music\AutoCutBGM"
         name = os.path.splitext(file)[0]
         self.name = os.path.basename(name)
-        self.cutPath = os.path.join(dir, "cut_video")
+        self.cutPath = os.path.join(directory, "cut_video")
         self.videoPath = os.path.join(self.cutPath, self.name)
-        self.Audio = os.path.join(dir, self.name + ".wav")
+        self.Audio = os.path.join(directory, self.name + ".wav")
         self.saveNumber = 1
         self.video_splt_time = []
         self.save_filename_list = []
@@ -129,5 +133,4 @@ class AudioVoice:
 
 
 if __name__ == "__main__":
-    file = r"F:\Alan\Videos\电影\aa.mp4"
-    av = AudioVoices().getFrame(file)
+    pass

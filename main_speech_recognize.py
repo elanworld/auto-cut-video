@@ -84,7 +84,7 @@ class SpeechRecognize:
     def __cut_clips(self, time_clips):
         files = []
         for clip in time_clips:
-            outpath = self.tools.get_outpath(self.file)
+            outpath = self.tools.out_path(self.file)
             if not os.path.exists(outpath):
                 self.ffmpeg.clip(self.file, outpath, clip[0], clip[1])
                 if not os.path.exists(outpath):

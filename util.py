@@ -1,6 +1,4 @@
-from progressbar import ProgressBar, widgets, Percentage, Timer, Bar, ETA
-import os
-import re
+from progressbar import ProgressBar, Percentage, Timer, Bar, ETA
 
 
 class Tools:
@@ -8,7 +6,7 @@ class Tools:
         self.name = "Tools"
 
     def progress_bar(self, total):
-        widgets = ["AutoCutMovie: ", Percentage(), Bar("#"), Timer(), " ", ETA()]
-        bar = ProgressBar(widgets=widgets, maxval=total).start()
+        widget = ["AutoCutMovie: ", Percentage(), Bar("#"), Timer(), " ", ETA()]
+        bar = ProgressBar(widgets=widget, maxval=total).start()
         return bar
 
