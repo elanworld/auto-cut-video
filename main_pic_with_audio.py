@@ -6,7 +6,7 @@ import re
 from progressbar import *
 from common import python_box
 
-tool = python_box.PythonBox()
+tool = python_box.FileSys()
 
 class FfmpegPlugin:
     def __init__(self):
