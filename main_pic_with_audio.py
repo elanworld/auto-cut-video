@@ -5,30 +5,30 @@ import numpy as np
 import re
 from progressbar import *
 from common import python_box
+import psutil
 
-tool = python_box.FileSys()
+file_sys = python_box.FileSys()
+
 
 class FfmpegPlugin:
     def __init__(self):
         self.t = time.time()
-        global ffmpeg
-        ffmpeg = "/data/data/com.termux/files/usr/bin/ffmpeg"
-        ffmpeg = "ffmpeg"
+        self.ffmpeg = "ffmpeg"
 
     def __del__(self):
         print(time.time() - self.t)
 
     def video2audio(self, dir):
-        f_lst = tool.dir_list(dir, "mp4$")
+        f_lst = file_sys.dir_list(dir, "mp4$")
         for file in f_lst:
             wav = re.sub("mp4", "", file) + "wav"
             print(file, wav)
-            cmd = "%s -y -i '%s' '%s'" % (ffmpeg, file, wav)
+            cmd = "%s -y -i '%s' '%s'" % (self.ffmpeg, file, wav)
             print(cmd)
             os.system(cmd)
 
     def audio_split(self):
-        f_lst = tool.dir_list(dir, "mp3$")
+        f_lst = file_sys.dir_list(directory, "mp3$")
         for file in f_lst:
             seconds = 0
             while 1:
@@ -41,7 +41,7 @@ class FfmpegPlugin:
                 mp4 = file
                 mp4_split = re.sub(".mp3", "", file) + "_%d.pcm" % seconds
                 cmd = "{ffmpeg} -y -ss {start} -t {end} -i {mp4} -acodec pcm_s16le -f s16le -ac 1 -ar 16000 {mp4_split}".format(
-                    ffmpeg=ffmpeg, start=start, end=end, mp4_split=mp4_split, mp4=mp4)
+                    ffmpeg=self.ffmpeg, start=start, end=end, mp4_split=mp4_split, mp4=mp4)
                 print(cmd)
                 os.system(cmd)
                 size = os.path.getsize(mp4_split)
@@ -55,19 +55,19 @@ class FfmpegPlugin:
         end = "0:4:49"
         print(file)
         cmd = '''{ffmpeg} -y -ss {start} -t {end} -i "{mp4}" -vcodec copy -acodec copy "{mp4_split}"'''.format(
-            ffmpeg=ffmpeg, start=start, end=end, mp4_split=mp4_split, mp4=mp4)
+            ffmpeg=self.ffmpeg, start=start, end=end, mp4_split=mp4_split, mp4=mp4)
         print(cmd)
         os.system(cmd)
 
     def video_concat(self, dir):
         os.chdir(dir)
         f_lst = []
-        for file in tool.dir_list(dir, "mp4"):
+        for file in file_sys.dir_list(dir, "mp4"):
             file = "file '{}'".format(file)
             f_lst.append(file)
         videoInfo = dir + "/videoInfo.txt"
-        tool.write_file(f_lst, videoInfo)
-        cmd = '''{} -f concat -i {} -c copy {}output.mp4'''.format(ffmpeg, videoInfo, dir + "/")
+        file_sys.write_file(f_lst, videoInfo)
+        cmd = '''{} -f concat -i {} -c copy {}output.mp4'''.format(self.ffmpeg, videoInfo, dir + "/")
         print(cmd)
         os.chdir(dir)
         os.system(cmd)
@@ -79,8 +79,8 @@ class MovieLib(FfmpegPlugin):
         super().__init__()
         self.dir = dir
         self.last_dir = os.path.split(dir)[0]
-        self.image = tool.dir_list(dir, "jpg")
-        self.audio_lst = tool.dir_list(self.last_dir + "/bgm", "mp3")
+        self.image = file_sys.dir_list(dir, "jpg")
+        self.audio_lst = file_sys.dir_list(self.last_dir + "/bgm", "mp3")
         self.imageVideo = self.last_dir + "/pic2video.mp4"
         self.imageAudio = self.last_dir + "/pic2video.wav"
         self.videoSpeed = self.last_dir + "/picSpeed.mp4"
@@ -93,7 +93,7 @@ class MovieLib(FfmpegPlugin):
 
     def movie_concat(self, dir):  # 合并后衔接处卡顿重复
         outPath = dir + "/concatVideo.mp4"
-        f_lst = tool.dir_list(dir, "mp4")
+        f_lst = file_sys.dir_list(dir, "mp4")
         videoClips = []
         for file in f_lst:
             videoClip = VideoFileClip(file)
@@ -166,7 +166,6 @@ class MovieLib(FfmpegPlugin):
         audio_speed = 1
         sens = 1
         # 视频速度匹配音频节奏 适用视频为重复性图片或者平调速度
-        import sys
         sys.setrecursionlimit(10000)
         video = VideoFileClip(self.imageVideo)
         self.video_time = video.duration
@@ -222,16 +221,15 @@ class MovieLib(FfmpegPlugin):
         bar.finish()
 
     def imageToclip(self):
-        import psutil
         width = 1080 * 4 / 3  # 视频默认尺寸
         height = 1080
         duration = 0.25  # 持续时间
         fps = 1.0 / duration
         width_height = width / height
-        fail_dir = self.last_dir + "/MoviepyFailed/"
-        bgm = self.getFiles(self.last_dir, "mp3$")
+        if len(self.audio_lst) == 0:
+            raise Exception("exists any music")
         audioClips = []
-        for m in bgm:
+        for m in self.audio_lst:
             audioClip = AudioFileClip(m)
             audioClips.append(audioClip)
         audioClip = concatenate_audioclips(audioClips)
@@ -284,8 +282,6 @@ class MovieLib(FfmpegPlugin):
                         del video
             except Exception as e:
                 fail_pic.append(imageFileName)
-                cmd = "cp {file} {dir}".format(file=imageFileName, dir=fail_dir)
-                # os.system(cmd)
                 print(e)
             bar.update(bar_i)
         if len(self.temp_videos) > 0:
@@ -322,9 +318,9 @@ class MovieLib(FfmpegPlugin):
 
 
 if __name__ == "__main__":
-    #pic to video clip
-    dir = r"F:\Alan\Videos\我的视频"
-    lib= MovieLib(dir)
+    """
+    pic to video clip
+    """
+    directory = python_box.get_agv()
+    lib = MovieLib(directory)
     lib.main()
-
-
