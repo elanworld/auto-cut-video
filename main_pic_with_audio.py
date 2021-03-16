@@ -87,6 +87,7 @@ class MovieLib(FfmpegPlugin):
         self.imageAudio = os.path.join(self.last_dir, "pic2video.wav")
         self.videoSpeed = os.path.join(self.last_dir, "picSpeed.mp4")
         self.temp_videos = []
+        self.sens = 0.8
 
     def imageSequence(self, directory, target):
         # 只支持相同尺寸图片合成视频
@@ -161,7 +162,6 @@ class MovieLib(FfmpegPlugin):
 
     def audio_anlysis(self):
         audio_speed = 1
-        sens = 1
         # 视频速度匹配音频节奏 适用视频为重复性图片或者平调速度
         sys.setrecursionlimit(10000)
         video = VideoFileClip(self.imageVideo)
@@ -184,7 +184,7 @@ class MovieLib(FfmpegPlugin):
 
         # 调整速度敏感度
         speed_arr = speed_arr / np.mean(speed_arr)
-        speed_arr = self.num_speed(speed_arr, 1.0 * sens)  # 速度变化敏感度
+        speed_arr = self.num_speed(speed_arr, 1.0 * self.sens)  # 速度变化敏感度
         speed_arr = speed_arr / np.mean(speed_arr)
         speed_arr = speed_arr * 1.0 * audio_speed  # 速率
         # 处理视频
@@ -205,7 +205,8 @@ class MovieLib(FfmpegPlugin):
 
         clip = VideoFileClip(video_without_audio)  # solve cant write audio
         duration = clip.duration
-        audio = AudioFileClip(self.imageAudio).set_duration(duration)
+        audio = AudioFileClip(self.imageAudio)
+        audio.set_duration(duration)
         clip.audio = audio
         clip.write_videofile(self.videoSpeed)
         # destroy
