@@ -88,6 +88,7 @@ class MovieLib(FfmpegPlugin):
         self.videoSpeed = os.path.join(self.last_dir, "picSpeed.mp4")
         self.temp_videos = []
         self.sens = 0.8
+        self.audio_leader = True
 
     def imageSequence(self, directory, target):
         # 只支持相同尺寸图片合成视频
@@ -126,11 +127,12 @@ class MovieLib(FfmpegPlugin):
         tb = ta + (tb - ta) * speed
         if tb <= clip.duration:
             speed_lambda = lambda c: speedx(c, speed)
-            clip = clip.subfx(speed_lambda, ta, tb)
+            try:
+                clip = clip.subfx(speed_lambda, ta, tb)
+            except Exception as e:
+                print(e)
             # 此处报错关闭所有python即可解决
-            return clip
-        else:
-            return clip
+        return clip
 
     def num_speed(self, numpy_arr, n):
         new_numpy_arr = np.array([])
@@ -165,8 +167,7 @@ class MovieLib(FfmpegPlugin):
         # 视频速度匹配音频节奏 适用视频为重复性图片或者平调速度
         sys.setrecursionlimit(10000)
         video = VideoFileClip(self.imageVideo)
-        self.video_time = video.duration
-        self.audio_wav()
+        video.audio.write_audiofile(self.imageAudio)
         audioTime, wave_data = self.audioDigital(self.imageAudio)
 
         time_arr = np.array([])
@@ -295,15 +296,20 @@ class MovieLib(FfmpegPlugin):
         # 设置音轨长度
         video_duration = video.duration
         audio_duration = audioClip.duration
-        while audio_duration < video_duration:
-            audioClip = concatenate_audioclips([audioClip, audioClip])
-            audio_duration = audioClip.duration
-        audioClip = audioClip.set_duration(video_duration)
+        if self.audio_leader:
+            video = video.subfx(lambda c: speedx(c,video_duration / audio_duration))
+        else:
+            while audioClip.duration < video_duration:
+                audioClip = concatenate_audioclips([audioClip, audioClip])
+            audioClip = audioClip.set_duration(video_duration)
         video.audio = audioClip
         video.write_videofile(self.imageVideo, fps=fps)
         del video
         for temp in self.temp_videos:
-            os.remove(temp)
+            try:
+                os.remove(temp)
+            except:
+                pass
         return self.imageVideo
 
     def main(self):
