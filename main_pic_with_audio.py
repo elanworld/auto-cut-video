@@ -1,3 +1,5 @@
+from typing import Tuple, Union, Any
+
 from moviepy.editor import *
 from moviepy.video.fx.speedx import speedx
 import wave
@@ -7,10 +9,8 @@ from progressbar import *
 import python_box
 import psutil
 import time
-import threading
 
 file_sys = python_box.FileSys()
-global speed_clip
 
 
 class FfmpegPlugin:
@@ -21,8 +21,8 @@ class FfmpegPlugin:
     def __del__(self):
         print("use time:", time.time() - self.t)
 
-    def video2audio(self, dir):
-        f_lst = file_sys.dir_list(dir, "mp4$")
+    def video2audio(self, directory):
+        f_lst = file_sys.dir_list(directory, "mp4$")
         for file in f_lst:
             wav = re.sub("mp4", "", file) + "wav"
             print(file, wav)
@@ -77,6 +77,58 @@ class FfmpegPlugin:
         os.remove(videoInfo)
 
 
+def imageSequence(directory, target):
+    # 只支持相同尺寸图片合成视频
+    clip = ImageSequenceClip(directory, fps=10)
+    clip.write_videofile(target)
+
+
+def movie_concat(directory):  # 合并后衔接处卡顿重复
+    outPath = directory + "/concatVideo.mp4"
+    f_lst = file_sys.dir_list(directory, "mp4")
+    videoClips = []
+    for file in f_lst:
+        videoClip = VideoFileClip(file)
+        videoClips.append(videoClip)
+    videoClip = concatenate_videoclips(videoClips)
+    videoClip.write_videofile(outPath)
+
+
+def clip_speed_change(clip, speed, ta, tb):
+    """
+    调节速度
+    keep change's time
+    :param clip:
+    :param speed:
+    :param ta: 开始时间
+    :param tb: 结束时间
+    :return:
+    """
+    tb = ta + (tb - ta) * speed
+    if tb <= clip.duration:
+        speed_lambda = lambda c: speedx(c, speed)
+        try:
+            clip = clip.subfx(speed_lambda, ta, tb)
+            # 此处报错关闭所有python即可解决,升级库
+        except Exception as e:
+            print(e)
+    return clip
+
+
+def num_speed(numpy_arr, n):
+    new_numpy_arr = np.array([])
+    for speed in numpy_arr:
+        if speed > 1:
+            new_speed = 1 + (speed - 1) * n
+        else:
+            if n <= 1:
+                new_speed = (1 - (1 - speed) * n)
+            if n > 1:
+                new_speed = speed / n
+        new_numpy_arr = np.append(new_numpy_arr, new_speed)
+    return new_numpy_arr
+
+
 class MovieLib(FfmpegPlugin):
     def __init__(self, dir):
         super().__init__()
@@ -88,93 +140,35 @@ class MovieLib(FfmpegPlugin):
         self.imageAudio = os.path.join(self.last_dir, "pic2video.wav")
         self.videoSpeed = os.path.join(self.last_dir, "picSpeed.mp4")
         self.temp_videos = []
+        # 变速
+        self.audio_speed = 1
         self.sens = 0.8
-        self.change_speed_time = 0.4
+        self.change_speed_time = 0.8
         self.audio_leader = True
 
-    def imageSequence(self, directory, target):
-        # 只支持相同尺寸图片合成视频
-        clip = ImageSequenceClip(directory, fps=10)
-        clip.write_videofile(target)
-
-    def movie_concat(self, dir):  # 合并后衔接处卡顿重复
-        outPath = dir + "/concatVideo.mp4"
-        f_lst = file_sys.dir_list(dir, "mp4")
-        videoClips = []
-        for file in f_lst:
-            videoClip = VideoFileClip(file)
-            videoClips.append(videoClip)
-        videoClip = concatenate_videoclips(videoClips)
-        videoClip.write_videofile(outPath)
-
-    def audio_wav(self):
-        AudioClips = []
-        for au in self.audio_lst:
-            AudioClip = AudioFileClip(au)
-            AudioClips.append(AudioClip)
-        AudioClip = concatenate_audioclips(AudioClips)
-        AudioClip = AudioClip.set_duration(self.video_time)
-        AudioClip.write_audiofile(self.imageAudio)
-
-    def clip_speed_change(self, clip, speed, ta, tb):
-        """
-        调节速度
-        keep change's time
-        :param clip:
-        :param speed:
-        :param ta: 开始时间
-        :param tb: 结束时间
-        :return:
-        """
-        tb = ta + (tb - ta) * speed
-        if tb <= clip.duration:
-            speed_lambda = lambda c: speedx(c, speed)
-            try:
-                clip = clip.subfx(speed_lambda, ta, tb)
-                # 此处报错关闭所有python即可解决,升级库
-            except Exception as e:
-                print(e)
-
-    def num_speed(self, numpy_arr, n):
-        new_numpy_arr = np.array([])
-        for speed in numpy_arr:
-            if speed > 1:
-                new_speed = 1 + (speed - 1) * n
-            else:
-                if n <= 1:
-                    new_speed = (1 - (1 - speed) * n)
-                if n > 1:
-                    new_speed = speed / n
-            new_numpy_arr = np.append(new_numpy_arr, new_speed)
-        return new_numpy_arr
-
-    def audioDigital(self, audio):
+    def audio2data(self, audio):
         f = wave.open(audio, 'rb')
         params = f.getparams()
-        nchannels, sampwidth, framerate, nframes = params[:4]
-        self.framerate = framerate
+        nchannels, sampwidth, self.framerate, nframes = params[:4]
         strData = f.readframes(nframes)
         f.close()
         waveData = np.fromstring(strData, dtype=np.short)
         waveData.shape = -1, 2
         waveData = waveData.T
         waveData = waveData[0]
-        audioTime = np.arange(0, nframes) * (1.0 / framerate)
+        audioTime = np.arange(0, nframes) * (1.0 / self.framerate)
         np.abs(waveData, out=waveData)
         return audioTime, waveData
 
-    def video_speed_with_audio(self):
-        audio_speed = 1
-        # 视频速度匹配音频节奏 适用视频为重复性图片或者平调速度
-        sys.setrecursionlimit(10000000)
-        video = VideoFileClip(self.imageVideo)
-        video.audio.write_audiofile(self.imageAudio)
-        audioTime, wave_data = self.audioDigital(self.imageAudio)
-
-        time_arr = np.array([])
-        speed_arr = np.array([])
-        speed_clip = VideoFileClip(self.imageVideo)  # initial clip
-        audio_clip = speed_clip.audio
+    def frame2speed(self, audioTime: list, wave_data: list) -> Tuple[np.ndarray, Union[Union[float, int], Any]]:
+        """
+        根据帧获取音频速度
+        :param audioTime:
+        :param wave_data:
+        :return:
+        """
+        np_time = np.array([])
+        np_speed = np.array([])
         # 获取关键帧
         f = 0
         f_duration = int(self.framerate * self.change_speed_time)
@@ -182,25 +176,35 @@ class MovieLib(FfmpegPlugin):
             t = audioTime[f]
             speed = np.mean(wave_data[f:f + f_duration])
             f += f_duration
-            time_arr = np.append(time_arr, t)
-            speed_arr = np.append(speed_arr, speed)
-
+            np_time = np.append(np_time, t)
+            np_speed = np.append(np_speed, speed)
         # 调整速度敏感度
-        speed_arr = speed_arr / np.mean(speed_arr)
-        speed_arr = self.num_speed(speed_arr, 1.0 * self.sens)  # 速度变化敏感度
-        speed_arr = speed_arr / np.mean(speed_arr)
-        speed_arr = speed_arr * 1.0 * audio_speed  # 速率
+        np_speed = np_speed / np.mean(np_speed)
+        np_speed = num_speed(np_speed, 1.0 * self.sens)  # 速度变化敏感度
+        np_speed = np_speed / np.mean(np_speed)
+        np_speed = np_speed * 1.0 * self.audio_speed  # 速率
+        return np_time, np_speed
+
+    def video_speed_with_audio(self):
+        # 视频速度匹配音频节奏 适用视频为重复性图片或者平调速度
+        sys.setrecursionlimit(10000000)
+        video = VideoFileClip(self.imageVideo)
+        video.audio.write_audiofile(self.imageAudio)
+        audioTime, wave_data = self.audio2data(self.imageAudio)
+        np_time, np_speed = self.frame2speed(audioTime, wave_data)
         # 处理视频
-        widgets = ['change speed: ', Percentage(), Bar("#"), Timer(), ' ', ETA()]
-        bar = ProgressBar(widgets=widgets, maxval=len(speed_arr)).start()
+        bar_setting = ['change speed: ', Percentage(), Bar("#"), Timer(), ' ', ETA()]
+        speed_clip = VideoFileClip(self.imageVideo)  # initial clip
+        audio_clip = speed_clip.audio
+        bar = ProgressBar(widgets=bar_setting, maxval=len(np_speed)).start()
         bar_update_tie = 1
-        for i in range(len(speed_arr)):
+        for i in range(len(np_speed)):
             bar.update(bar_update_tie)
             bar_update_tie += 1
-            speed = speed_arr[i]
-            t = time_arr[i]
-            self.clip_speed_change(speed_clip, speed, t, t + self.change_speed_time)  # 分段变速
-            time_arr = np.append(time_arr, t)
+            speed = np_speed[i]
+            t = np_time[i]
+            speed_clip = clip_speed_change(speed_clip, speed, t, t + self.change_speed_time)  # 分段变速
+            np_time = np.append(np_time, t)
         speed_clip.audio = audio_clip
         print(self.videoSpeed)
         video_without_audio = file_sys.get_outfile(self.videoSpeed, "no_audio")
@@ -219,14 +223,11 @@ class MovieLib(FfmpegPlugin):
             os.remove(video_without_audio)
             os.remove(self.imageAudio)
             os.remove(self.imageVideo)
-        except:
-            pass
+        except Exception as e:
+            print(e)
         bar.finish()
 
-    def image2clip(self):
-        width = 1080 * 4 / 3  # 视频默认尺寸
-        height = 1080
-        duration = 0.25  # 持续时间
+    def image2clip(self, width=1980, height=1080, duration=0.25):
         fps = 1.0 / duration
         width_height = width / height
         if len(self.audio_lst) == 0:
@@ -237,41 +238,37 @@ class MovieLib(FfmpegPlugin):
             audioClips.append(audioClip)
         audioClip = concatenate_audioclips(audioClips)
 
-        listOfFiles = self.image
-        listOfFiles.sort()
-        widgets = ['Progress: ', Percentage(), Bar('#'), ' ', ETA()]
-        bar = ProgressBar(widgets=widgets, maxval=len(self.image)).start()
+        self.image.sort()
+        bar_setting = ['image2clip: ', Percentage(), Bar('#'), ' ', ETA()]
+        bar = ProgressBar(widgets=bar_setting, maxval=len(self.image)).start()
         videoStartTime = 0
         videoClips = []
         fail_pic = []
         bar_i = 0
-        for imageFileName in listOfFiles:
+        for imageFileName in self.image:
             bar_i += 1
             try:
-                # print ('内存使用：',psutil.Process(os.getpid()).memory_info().rss/1024/1024)
-                # print(imageFileName)
                 imageClip = ImageClip(imageFileName)
                 videoClip = imageClip.set_duration(duration)
                 videoClip = videoClip.set_start(videoStartTime)
-                v_w, v_h = videoClip.size  # 视频长宽
-                w_h = v_w / v_h
+                w, h = videoClip.size  # 视频长宽
+                w_h = w / h
                 if w_h <= width_height:  # 宽度尺寸偏小
                     videoClip = videoClip.resize(width=width)
-                    v_w, v_h = videoClip.size
-                    videoClip = videoClip.crop(x_center=v_w / 2, y_center=v_h / 2, width=width, height=height)
+                    w, h = videoClip.size
+                    videoClip = videoClip.crop(x_center=w / 2, y_center=h / 2, width=width, height=height)
                 if w_h > width_height:
                     videoClip = videoClip.resize(height=height)
-                    v_w, v_h = videoClip.size
-                    videoClip = videoClip.crop(x_center=v_w / 2, y_center=v_h / 2, width=width, height=height)
-                v_w, v_h = videoClip.size  # 视频长宽
-                w_h = v_w / v_h
+                    w, h = videoClip.size
+                    videoClip = videoClip.crop(x_center=w / 2, y_center=h / 2, width=width, height=height)
+                w, h = videoClip.size  # 视频长宽
+                w_h = w / h
                 videoStartTime += duration
-                # videoClips.append(videoClip)
-                if 'video' not in locals().keys():
-                    video = videoClip
+                if 'video_clip' not in locals().keys():
+                    video_clip = videoClip
                 else:
-                    video = concatenate_videoclips([video, videoClip])
-                    # 内存不足，分步写入
+                    video_clip = concatenate_videoclips([video_clip, videoClip])
+                    # 内存不足时，分步写入
                     if psutil.Process(os.getpid()).memory_info().rss / 1024 / 1024 > 800:
                         i = 1
                         temp_video = file_sys.get_outfile(self.imageVideo, str(i))
@@ -282,8 +279,8 @@ class MovieLib(FfmpegPlugin):
                             else:
                                 self.temp_videos.append(temp_video)
                                 break
-                        video.write_videofile(temp_video, fps=fps)
-                        del video
+                        video_clip.write_videofile(temp_video, fps=fps)
+                        del video_clip
             except Exception as e:
                 fail_pic.append(imageFileName)
                 print(e)
@@ -291,48 +288,43 @@ class MovieLib(FfmpegPlugin):
         if len(self.temp_videos) > 0:
             videos = []
             for temp_video in self.temp_videos:
-                video = VideoFileClip(temp_video)
-                videos.append(video)
-            video = concatenate_videoclips(videos)
+                video_clip = VideoFileClip(temp_video)
+                videos.append(video_clip)
+            video_clip = concatenate_videoclips(videos)
         bar.finish()
         # 设置音轨长度
-        video_duration = video.duration
+        video_duration = video_clip.duration
         audio_duration = audioClip.duration
         if self.audio_leader:
-            video = video.subfx(lambda c: speedx(c, video_duration / audio_duration))
+            video_clip = video_clip.subfx(lambda c: speedx(c, video_duration / audio_duration))
         else:
             while audioClip.duration < video_duration:
                 audioClip = concatenate_audioclips([audioClip, audioClip])
             audioClip = audioClip.set_duration(video_duration)
-        video.audio = audioClip
-        video.write_videofile(self.imageVideo, fps=fps)
-        del video
+        video_clip.audio = audioClip
+        video_clip.write_videofile(self.imageVideo, fps=fps)
+        del video_clip
         for temp in self.temp_videos:
             try:
                 os.remove(temp)
-            except:
-                pass
+            except Exception as e:
+                print(e)
         return self.imageVideo
 
-    def main(self):
+    def run(self):
         """
         批量图片合成clip
         通过bgm识别播放节奏，生成新的clip
         :return:
         """
-        # self.image2clip()
+        self.image2clip()
         self.video_speed_with_audio()
 
-
-def launch():
-    directory = python_box.get_agv()
-    lib = MovieLib(directory)
-    lib.main()
 
 if __name__ == "__main__":
     """
     pic to video clip
     """
-    threading.stack_size(200000000)
-    thread = threading.Thread(target=launch())
-    thread.start()
+    directory = python_box.get_agv()
+    n = MovieLib(directory)
+    n.run()
