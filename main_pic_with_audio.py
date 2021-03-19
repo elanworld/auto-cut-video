@@ -129,16 +129,30 @@ def num_speed(numpy_arr, n):
     return new_numpy_arr
 
 
+def get_current_index(np_array: np.ndarray, value):
+    """
+    获取顺序排序数组中t附近的索引
+    :param np_array:
+    :param value:
+    :return:
+    """
+    index = np.where(np_array <= value)
+    if len(index) > 0:
+        if len(index[0]) > 0:
+            return index[0][len(index[0]) - 1]
+    return len(np_array) - 1
+
+
 class MovieLib(FfmpegPlugin):
     def __init__(self, dir):
         super().__init__()
         self.dir = dir
         self.last_dir = os.path.split(dir)[0]
-        self.image = file_sys.dir_list(dir, "jpg")
+        self.image_list = file_sys.dir_list(dir, "jpg")
         self.audio_lst = file_sys.dir_list(os.path.join(self.last_dir, "bgm"), "mp3")
         self.imageVideo = os.path.join(self.last_dir, "pic2video.mp4")
-        self.imageAudio = os.path.join(self.last_dir, "pic2video.wav")
-        self.videoSpeed = os.path.join(self.last_dir, "picSpeed.mp4")
+        self.audio_file = os.path.join(self.last_dir, "pic2video.wav")
+        self.speed_video_file = os.path.join(self.last_dir, "picSpeed.mp4")
         self.temp_videos = []
         # 变速
         self.audio_speed = 1
@@ -189,8 +203,8 @@ class MovieLib(FfmpegPlugin):
         # 视频速度匹配音频节奏 适用视频为重复性图片或者平调速度
         sys.setrecursionlimit(10000000)
         video = VideoFileClip(self.imageVideo)
-        video.audio.write_audiofile(self.imageAudio)
-        audioTime, wave_data = self.audio2data(self.imageAudio)
+        video.audio.write_audiofile(self.audio_file)
+        audioTime, wave_data = self.audio2data(self.audio_file)
         np_time, np_speed = self.frame2speed(audioTime, wave_data)
         # 处理视频
         bar_setting = ['change speed: ', Percentage(), Bar("#"), Timer(), ' ', ETA()]
@@ -206,26 +220,95 @@ class MovieLib(FfmpegPlugin):
             speed_clip = clip_speed_change(speed_clip, speed, t, t + self.change_speed_time)  # 分段变速
             np_time = np.append(np_time, t)
         speed_clip.audio = audio_clip
-        print(self.videoSpeed)
-        video_without_audio = file_sys.get_outfile(self.videoSpeed, "no_audio")
+        print(self.speed_video_file)
+        video_without_audio = file_sys.get_outfile(self.speed_video_file, "no_audio")
         speed_clip.write_videofile(video_without_audio, audio=False)
 
         speed_clip = VideoFileClip(video_without_audio)  # solve cant write audio
         duration = speed_clip.duration
-        audio = AudioFileClip(self.imageAudio)
+        audio = AudioFileClip(self.audio_file)
         audio.set_duration(duration)
         speed_clip.audio = audio
-        speed_clip.write_videofile(self.videoSpeed)
+        speed_clip.write_videofile(self.speed_video_file)
         # destroy
         del audio
         del speed_clip
         try:
             os.remove(video_without_audio)
-            os.remove(self.imageAudio)
+            os.remove(self.audio_file)
             os.remove(self.imageVideo)
         except Exception as e:
             print(e)
         bar.finish()
+
+    def compute_time_line(self, np_time: np.ndarray, np_speed: np.ndarray, clips: list, audio_duration) -> list:
+        """
+        算法循环找出clip适合的时长，使总时长接近audio_duration
+        :param np_time:
+        :param np_speed:
+        :param clips:
+        :param audio_duration:
+        :return:
+        """
+        plus = None
+        reduce = None
+        default_var = audio_duration / len(clips)
+        durations = []
+        while True:
+            durations.clear()
+            for _ in clips:
+                index = get_current_index(np_time, sum(durations))
+                duration = 1.0 / np_speed[index]
+                clip_duration = duration * default_var
+                durations.append(clip_duration)
+            f = sum(durations)
+            if sum(durations) > audio_duration:
+                default_var *= 0.99
+                reduce = True
+            if sum(durations) <= audio_duration:
+                default_var *= 1.01
+                plus = True
+            if plus and reduce:
+                break
+        return durations
+
+    def image2speed_video(self, width=1980, height=1080):
+        # 生成音频数据
+        if len(self.audio_lst) == 0:
+            raise Exception("exists any music")
+        audio_clips = []
+        for m in self.audio_lst:
+            clip = AudioFileClip(m)
+            audio_clips.append(clip)
+        audio_clip = concatenate_audioclips(audio_clips)
+        audio_clip.write_audiofile(self.audio_file)
+        audioTime, wave_data = self.audio2data(self.audio_file)
+        np_time, np_speed = self.frame2speed(audioTime, wave_data)
+        time_line = self.compute_time_line(np_time, np_speed, self.image_list, audio_clip.duration)
+
+        self.image_list.sort()
+        image_clips = []
+        for i in range(len(self.image_list)):
+            image_clip = ImageClip(self.image_list[i])
+            image_clip.duration = time_line[i]
+            image_clip.start = sum(time_line[0:i])
+            image_clip.fps = 1
+            w, h = image_clip.size  # 视频长宽
+            w_h = w / h
+            if w_h <= width / height:  # 宽度尺寸偏小
+                image_clip = image_clip.resize(width=width)
+                w, h = image_clip.size
+                image_clip = image_clip.crop(x_center=w / 2, y_center=h / 2, width=width, height=height)
+            if w_h > width / height:
+                image_clip = image_clip.resize(height=height)
+                w, h = image_clip.size
+                image_clip = image_clip.crop(x_center=w / 2, y_center=h / 2, width=width, height=height)
+            image_clips.append(image_clip)
+
+        video_clip = concatenate_videoclips(image_clips)
+        video_clip.audio = audio_clip
+        video_clip.write_videofile(self.speed_video_file, fps=int(max(time_line) / 1))
+        os.remove(self.audio_file)
 
     def image2clip(self, width=1980, height=1080, duration=0.25):
         fps = 1.0 / duration
@@ -317,8 +400,7 @@ class MovieLib(FfmpegPlugin):
         通过bgm识别播放节奏，生成新的clip
         :return:
         """
-        self.image2clip()
-        self.video_speed_with_audio()
+        self.image2speed_video()
 
 
 if __name__ == "__main__":
