@@ -272,7 +272,20 @@ class MovieLib(FfmpegPlugin):
                 break
         return durations
 
-    def image2speed_video(self, width=1980, height=1080):
+    def crop_clip(self, clip: ImageClip, width=1080 * 4 / 3, height=1080):
+        w, h = clip.size  # 视频长宽
+        w_h = w / h
+        if w_h <= width / height:  # 宽度尺寸偏小
+            clip = clip.resize(width=width)
+            w, h = clip.size
+            clip = clip.crop(x_center=w / 2, y_center=h / 2, width=width, height=height)
+        if w_h > width / height:
+            clip = clip.resize(height=height)
+            w, h = clip.size
+            clip = clip.crop(x_center=w / 2, y_center=h / 2, width=width, height=height)
+        return clip
+
+    def image2speed_video(self, width=1080 * 4 / 3, height=1080):
         # 生成音频数据
         if len(self.audio_lst) == 0:
             raise Exception("exists any music")
@@ -290,19 +303,10 @@ class MovieLib(FfmpegPlugin):
         image_clips = []
         for i in range(len(self.image_list)):
             image_clip = ImageClip(self.image_list[i])
-            image_clip.duration = time_line[i]
             image_clip.start = sum(time_line[0:i])
+            image_clip.duration = time_line[i]
             image_clip.fps = 1
-            w, h = image_clip.size  # 视频长宽
-            w_h = w / h
-            if w_h <= width / height:  # 宽度尺寸偏小
-                image_clip = image_clip.resize(width=width)
-                w, h = image_clip.size
-                image_clip = image_clip.crop(x_center=w / 2, y_center=h / 2, width=width, height=height)
-            if w_h > width / height:
-                image_clip = image_clip.resize(height=height)
-                w, h = image_clip.size
-                image_clip = image_clip.crop(x_center=w / 2, y_center=h / 2, width=width, height=height)
+            image_clip = self.crop_clip(image_clip, width, height)
             image_clips.append(image_clip)
 
         video_clip = concatenate_videoclips(image_clips)
@@ -310,7 +314,7 @@ class MovieLib(FfmpegPlugin):
         video_clip.write_videofile(self.speed_video_file, fps=int(max(time_line) / 1))
         os.remove(self.audio_file)
 
-    def image2clip(self, width=1980, height=1080, duration=0.25):
+    def image2clip(self, width=1080 * 4 / 3, height=1080, duration=0.25):
         fps = 1.0 / duration
         width_height = width / height
         if len(self.audio_lst) == 0:
@@ -334,18 +338,7 @@ class MovieLib(FfmpegPlugin):
                 imageClip = ImageClip(imageFileName)
                 videoClip = imageClip.set_duration(duration)
                 videoClip = videoClip.set_start(videoStartTime)
-                w, h = videoClip.size  # 视频长宽
-                w_h = w / h
-                if w_h <= width_height:  # 宽度尺寸偏小
-                    videoClip = videoClip.resize(width=width)
-                    w, h = videoClip.size
-                    videoClip = videoClip.crop(x_center=w / 2, y_center=h / 2, width=width, height=height)
-                if w_h > width_height:
-                    videoClip = videoClip.resize(height=height)
-                    w, h = videoClip.size
-                    videoClip = videoClip.crop(x_center=w / 2, y_center=h / 2, width=width, height=height)
-                w, h = videoClip.size  # 视频长宽
-                w_h = w / h
+                videoClip = self.crop_clip(videoClip, width, height)
                 videoStartTime += duration
                 if 'video_clip' not in locals().keys():
                     video_clip = videoClip
