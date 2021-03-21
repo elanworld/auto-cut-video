@@ -6,7 +6,7 @@ from common import python_box
 class FFmpegBox:
     def __init__(self):
         self.ffmpeg = "ffmpeg"
-        self.file_sys = python_box.FileSys()
+        self.file_sys = python_box
 
         self._prepare()
 

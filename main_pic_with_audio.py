@@ -11,7 +11,7 @@ import psutil
 import time
 import math
 
-file_sys = python_box.FileSys()
+file_sys = python_box
 
 
 class FfmpegPlugin:
