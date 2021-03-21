@@ -6,12 +6,10 @@ import wave
 import numpy as np
 import re
 from progressbar import *
-import python_box
+from common import python_box
 import psutil
 import time
 import math
-
-file_sys = python_box
 
 
 class FfmpegPlugin:
@@ -23,7 +21,7 @@ class FfmpegPlugin:
         print("use time:", time.time() - self.t)
 
     def video2audio(self, directory):
-        f_lst = file_sys.dir_list(directory, "mp4$")
+        f_lst = python_box.dir_list(directory, "mp4$")
         for file in f_lst:
             wav = re.sub("mp4", "", file) + "wav"
             print(file, wav)
@@ -32,7 +30,7 @@ class FfmpegPlugin:
             os.system(cmd)
 
     def audio_split(self, directory):
-        f_lst = file_sys.dir_list(directory, "mp3$")
+        f_lst = python_box.dir_list(directory, "mp3$")
         for file in f_lst:
             seconds = 0
             while 1:
@@ -66,11 +64,11 @@ class FfmpegPlugin:
     def video_concat(self, dir):
         os.chdir(dir)
         f_lst = []
-        for file in file_sys.dir_list(dir, "mp4"):
+        for file in python_box.dir_list(dir, "mp4"):
             file = "file '{}'".format(file)
             f_lst.append(file)
         videoInfo = dir + "/videoInfo.txt"
-        file_sys.write_file(f_lst, videoInfo)
+        python_box.write_file(f_lst, videoInfo)
         cmd = '''{} -f concat -i {} -c copy {}output.mp4'''.format(self.ffmpeg, videoInfo, dir + "/")
         print(cmd)
         os.chdir(dir)
@@ -86,7 +84,7 @@ def imageSequence(directory, target):
 
 def movie_concat(directory):  # 合并后衔接处卡顿重复
     outPath = directory + "/concatVideo.mp4"
-    f_lst = file_sys.dir_list(directory, "mp4")
+    f_lst = python_box.dir_list(directory, "mp4")
     videoClips = []
     for file in f_lst:
         videoClip = VideoFileClip(file)
@@ -144,13 +142,51 @@ def get_current_index(np_array: np.ndarray, value):
     return len(np_array) - 1
 
 
+def compute_time_line(np_time: np.ndarray, np_speed: np.ndarray, clips: list, audio_duration) -> list:
+    """
+    算法循环找出clip适合的时长，使总时长接近audio_duration
+    :param np_time:
+    :param np_speed:
+    :param clips:
+    :param audio_duration:
+    :return:
+    """
+    default_var = audio_duration / len(clips)
+    change_var = 0.01
+    durations = []
+    while True:
+        durations.clear()
+        for _ in clips:
+            index = get_current_index(np_time, sum(durations))
+            duration = 1.0 / np_speed[index]
+            clip_duration = duration * default_var
+            durations.append(clip_duration)
+        total = sum(durations)
+        if total > audio_duration:
+            default_var *= 1 - change_var
+        if total <= audio_duration:
+            default_var *= 1 + change_var
+        got = math.fabs(total - audio_duration) < 1
+        if got:
+            break
+        else:
+            change_var *= 0.8
+    if len(sys.argv) >= 3 and sys.argv[2] == "plot":
+        from common import tools
+        data = []
+        for i in durations:
+            data.append(1/i)
+        tools.plot_list(data)
+    return durations
+
+
 class MovieLib(FfmpegPlugin):
     def __init__(self, dir):
         super().__init__()
         self.dir = dir
         self.last_dir = os.path.split(dir)[0]
-        self.image_list = file_sys.dir_list(dir, "jpg")
-        self.audio_lst = file_sys.dir_list(os.path.join(self.last_dir, "bgm"))
+        self.image_list = python_box.dir_list(dir, "jpg")
+        self.audio_lst = python_box.dir_list(os.path.join(self.last_dir, "bgm"))
         self.imageVideo = os.path.join(self.last_dir, "pic2video.mp4")
         self.audio_file = os.path.join(self.last_dir, "pic2video.wav")
         self.speed_video_file = os.path.join(self.last_dir, "picSpeed.mp4")
@@ -171,7 +207,11 @@ class MovieLib(FfmpegPlugin):
         waveData = waveData.T
         waveData = waveData[0]
         audioTime = np.arange(0, nframes) * (1.0 / self.framerate)
+        if len(sys.argv) >= 3 and sys.argv[2] == "plot":
+            from common import tools
+            tools.plot_list(waveData, audioTime)
         np.abs(waveData, out=waveData)
+
         return audioTime, waveData
 
     def frame2speed(self, audioTime: list, wave_data: list, f_duration=None) -> Tuple[
@@ -188,7 +228,7 @@ class MovieLib(FfmpegPlugin):
         # 获取关键帧
         f = 0
         if f_duration is None:
-            f_duration = int(self.framerate * 0.2)
+            f_duration = int(self.framerate * 0.5)
         while f <= len(audioTime) - 1:
             t = audioTime[f]
             speed = np.mean(wave_data[f:f + f_duration])
@@ -227,7 +267,7 @@ class MovieLib(FfmpegPlugin):
             np_time = np.append(np_time, t)
         speed_clip.audio = audio_clip
         print(self.speed_video_file)
-        video_without_audio = file_sys.get_outfile(self.speed_video_file, "no_audio")
+        video_without_audio = python_box.get_outfile(self.speed_video_file, "no_audio")
         speed_clip.write_videofile(video_without_audio, audio=False)
 
         speed_clip = VideoFileClip(video_without_audio)  # solve cant write audio
@@ -246,43 +286,6 @@ class MovieLib(FfmpegPlugin):
         except Exception as e:
             print(e)
         bar.finish()
-
-    def compute_time_line(self, np_time: np.ndarray, np_speed: np.ndarray, clips: list, audio_duration) -> list:
-        """
-        算法循环找出clip适合的时长，使总时长接近audio_duration
-        :param np_time:
-        :param np_speed:
-        :param clips:
-        :param audio_duration:
-        :return:
-        """
-        plus = None
-        reduce = None
-        default_var = audio_duration / len(clips)
-        change_var = 0.01
-        durations = []
-        while True:
-            durations.clear()
-            for _ in clips:
-                index = get_current_index(np_time, sum(durations))
-                duration = 1.0 / np_speed[index]
-                clip_duration = duration * default_var
-                durations.append(clip_duration)
-            total = sum(durations)
-            if total > audio_duration:
-                default_var *= 1 - change_var
-                reduce = True
-            if total <= audio_duration:
-                default_var *= 1 + change_var
-                plus = True
-            if plus and reduce:
-                if math.fabs(total - audio_duration) > 1:
-                    plus = None
-                    reduce = None
-                    change_var *= 0.8
-                else:
-                    break
-        return durations
 
     def crop_clip(self, clip: ImageClip, width=1080 * 4 / 3, height=1080):
         w, h = clip.size  # 视频长宽
@@ -316,7 +319,7 @@ class MovieLib(FfmpegPlugin):
         audio_clip.write_audiofile(self.audio_file)
         audioTime, wave_data = self.audio2data(self.audio_file)
         np_time, np_speed = self.frame2speed(audioTime, wave_data)
-        time_line = self.compute_time_line(np_time, np_speed, self.image_list, audio_clip.duration)
+        time_line = compute_time_line(np_time, np_speed, self.image_list, audio_clip.duration)
 
         self.image_list.sort()
         image_clips = []
@@ -366,11 +369,11 @@ class MovieLib(FfmpegPlugin):
                     # 内存不足时，分步写入
                     if psutil.Process(os.getpid()).memory_info().rss / 1024 / 1024 > 800:
                         i = 1
-                        temp_video = file_sys.get_outfile(self.imageVideo, str(i))
+                        temp_video = python_box.get_outfile(self.imageVideo, str(i))
                         while 1:
                             if os.path.exists(temp_video):
                                 i += 1
-                                temp_video = file_sys.get_outfile(self.imageVideo, str(i))
+                                temp_video = python_box.get_outfile(self.imageVideo, str(i))
                             else:
                                 self.temp_videos.append(temp_video)
                                 break
