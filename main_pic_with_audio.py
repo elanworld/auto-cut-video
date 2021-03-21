@@ -9,6 +9,7 @@ from progressbar import *
 import python_box
 import psutil
 import time
+import math
 
 file_sys = python_box.FileSys()
 
@@ -155,7 +156,7 @@ class MovieLib(FfmpegPlugin):
         self.speed_video_file = os.path.join(self.last_dir, "picSpeed.mp4")
         self.temp_videos = []
         # 速度变化敏感度
-        self.sens = 1.2
+        self.sens = 0.6
         self.change_speed_time = 0.8
         self.audio_leader = True
 
@@ -258,6 +259,7 @@ class MovieLib(FfmpegPlugin):
         plus = None
         reduce = None
         default_var = audio_duration / len(clips)
+        change_var = 0.01
         durations = []
         while True:
             durations.clear()
@@ -268,13 +270,18 @@ class MovieLib(FfmpegPlugin):
                 durations.append(clip_duration)
             total = sum(durations)
             if total > audio_duration:
-                default_var *= 0.99
+                default_var *= 1 - change_var
                 reduce = True
             if total <= audio_duration:
-                default_var *= 1.01
+                default_var *= 1 + change_var
                 plus = True
             if plus and reduce:
-                break
+                if math.fabs(total - audio_duration) > 1:
+                    plus = None
+                    reduce = None
+                    change_var *= 0.8
+                else:
+                    break
         return durations
 
     def crop_clip(self, clip: ImageClip, width=1080 * 4 / 3, height=1080):
