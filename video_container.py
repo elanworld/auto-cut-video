@@ -2,8 +2,10 @@ import cv2
 from compare_frame import CompareFrame
 import os
 import re
+import random
 import subprocess
 from ffmpeg_box import FFmpegBox
+
 
 class CaptureContainer:
     def __init__(self, file):
@@ -57,12 +59,13 @@ class CaptureContainer:
             start = start_frame / self.rate
             end = frame_num / self.rate
             self.ffmpeg.clip(self.file,
-                            self.__get_outpath(self.file),
+                             self.__get_outpath(self.file),
                              start,
                              end)
         else:
             save_first = self.__get_outpath(self.file)
             self.writer.save_video(save_first, frames, self.rate, self.size)
+            out_video = self.save_file + str(self.save_file_num) + "_audio.mp4"
             self.ffmpeg.mix(self.__get_outpath(self.file), self.__random_bgm(), out_video)
             os.remove(save_first)
 
@@ -79,7 +82,6 @@ class CaptureContainer:
         return save_file
 
     def __random_bgm(self):
-        import random
         dir = r"F:\Alan\Music\AutoCutBGM\out"
         file_list = [os.path.join(dir, file) for file in os.listdir(dir)]
         random.shuffle(file_list)
@@ -95,5 +97,3 @@ class WriterContainer:
         for frame in frames:
             writer.write(frame)
         return True
-
-
