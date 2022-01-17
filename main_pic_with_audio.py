@@ -1,3 +1,4 @@
+# 根据图片和音乐合成带节奏的相册视频
 from typing import Tuple, Union, Any
 
 from moviepy.editor import *
@@ -7,6 +8,7 @@ import numpy as np
 import re
 from progressbar import *
 from common import python_box
+from common import gui
 import psutil
 import time
 import math
@@ -175,7 +177,7 @@ def compute_time_line(np_time: np.ndarray, np_speed: np.ndarray, clips: list, au
         from common import tools
         data = []
         for i in durations:
-            data.append(1/i)
+            data.append(1 / i)
         tools.plot_list(data)
     return durations
 
@@ -186,7 +188,7 @@ class MovieLib(FfmpegPlugin):
         self.dir = dir
         self.last_dir = os.path.split(dir)[0]
         self.image_list = python_box.dir_list(dir, "jpg")
-        self.audio_lst = python_box.dir_list(os.path.join(self.last_dir, "bgm"))
+        self.audio_lst = []
         self.imageVideo = os.path.join(self.last_dir, "pic2video.mp4")
         self.audio_file = os.path.join(self.last_dir, "pic2video.wav")
         self.speed_video_file = os.path.join(self.last_dir, "picSpeed.mp4")
@@ -195,6 +197,9 @@ class MovieLib(FfmpegPlugin):
         self.sens = 0.6
         self.change_speed_time = 0.8
         self.audio_leader = True
+
+    def add_bgm(self, audio_dir):
+        self.audio_lst = python_box.dir_list(audio_dir)
 
     def audio2data(self, audio):
         f = wave.open(audio, 'rb')
@@ -310,7 +315,7 @@ class MovieLib(FfmpegPlugin):
         """
         # 生成音频数据
         if len(self.audio_lst) == 0:
-            raise Exception("exists any music")
+            raise Exception("not exists any music")
         audio_clips = []
         for m in self.audio_lst:
             clip = AudioFileClip(m)
@@ -422,6 +427,8 @@ if __name__ == "__main__":
     """
     pic to video clip
     """
-    directory = python_box.get_agv()
-    n = MovieLib(directory)
-    n.run()
+    directory = gui.select_dir("图片目录")
+    bgm = gui.select_dir("音乐目录")
+    movie = MovieLib(directory)
+    movie.add_bgm(bgm)
+    movie.run()
