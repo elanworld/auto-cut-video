@@ -197,9 +197,10 @@ class MovieLib(FfmpegPlugin):
         self.audio_leader = True
 
     def set_out(self, directory):
-        self.imageVideo = os.path.join(directory, "pic2video.mp4")
-        self.audio_file = os.path.join(directory, "pic2video.wav")
-        self.speed_video_file = os.path.join(directory, f"{os.path.basename(directory)}.mp4")
+        dir_ = os.path.split(dir)[0]
+        self.imageVideo = os.path.join(dir_, "pic2video.mp4")
+        self.audio_file = os.path.join(dir_, "pic2video.wav")
+        self.speed_video_file = os.path.join(dir_, f"{os.path.basename(dir_)}.mp4")
 
     def add_bgm(self, audio_dir):
         self.audio_lst.append(audio_dir)
