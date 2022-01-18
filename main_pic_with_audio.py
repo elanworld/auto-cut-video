@@ -159,9 +159,9 @@ def compute_time_line(np_time: np.ndarray, np_speed: np.ndarray, clips: list, au
     while True:
         durations.clear()
         for _ in clips:
-            index = get_current_index(np_time, sum(durations))
-            duration = 1.0 / np_speed[index]
-            clip_duration = duration * default_var
+            like_index = get_current_index(np_time, sum(durations))
+            clip_duration = 1.0 / np_speed[like_index]
+            clip_duration = clip_duration * default_var
             durations.append(clip_duration)
         total = sum(durations)
         if total > audio_duration:
@@ -183,23 +183,31 @@ def compute_time_line(np_time: np.ndarray, np_speed: np.ndarray, clips: list, au
 
 
 class MovieLib(FfmpegPlugin):
-    def __init__(self, dir):
+    def __init__(self):
         super().__init__()
-        self.dir = dir
-        self.last_dir = os.path.split(dir)[0]
-        self.image_list = python_box.dir_list(dir, "jpg")
+        self.image_list = []
         self.audio_lst = []
-        self.imageVideo = os.path.join(self.last_dir, "pic2video.mp4")
-        self.audio_file = os.path.join(self.last_dir, "pic2video.wav")
-        self.speed_video_file = os.path.join(self.last_dir, "picSpeed.mp4")
+        self.imageVideo = None
+        self.audio_file = None
+        self.speed_video_file = None
         self.temp_videos = []
         # 速度变化敏感度
         self.sens = 0.6
         self.change_speed_time = 0.8
         self.audio_leader = True
 
+    def set_out(self, directory):
+        self.imageVideo = os.path.join(directory, "pic2video.mp4")
+        self.audio_file = os.path.join(directory, "pic2video.wav")
+        self.speed_video_file = os.path.join(directory, f"{os.path.basename(directory)}.mp4")
+
     def add_bgm(self, audio_dir):
-        self.audio_lst = python_box.dir_list(audio_dir)
+        self.audio_lst.append(audio_dir)
+
+    def add_pic(self, pic_dir):
+        self.image_list.extend(sorted(python_box.dir_list(pic_dir, "jpg", walk=True)))
+        if not self.speed_video_file:
+            self.set_out(pic_dir)
 
     def audio2data(self, audio):
         f = wave.open(audio, 'rb')
@@ -338,7 +346,7 @@ class MovieLib(FfmpegPlugin):
 
         video_clip = concatenate_videoclips(image_clips)
         video_clip.audio = audio_clip
-        video_clip.write_videofile(self.speed_video_file, fps=(int(1 / min(time_line)) + 1))
+        video_clip.write_videofile(self.speed_video_file, fps=5)
         os.remove(self.audio_file)
 
     def image2clip(self, width=1080 * 4 / 3, height=1080, duration=0.25):
@@ -427,8 +435,17 @@ if __name__ == "__main__":
     """
     pic to video clip
     """
-    directory = gui.select_dir("图片目录")
-    bgm = gui.select_dir("音乐目录")
-    movie = MovieLib(directory)
-    movie.add_bgm(bgm)
+    movie = MovieLib()
+    for i in range(6):
+        directory = gui.select_dir("多个图片目录,取消代表则选择完成")
+        if directory:
+            movie.add_pic(directory)
+        else:
+            break
+    for i in range(6):
+        file = gui.select_file("多个音乐文件,取消代表则选择完成")
+        if file:
+            movie.add_bgm(file)
+        else:
+            break
     movie.run()
