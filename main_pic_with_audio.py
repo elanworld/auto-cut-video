@@ -197,7 +197,7 @@ class MovieLib(FfmpegPlugin):
         self.audio_leader = True
 
     def set_out(self, directory):
-        dir_ = os.path.split(dir)[0]
+        dir_ = os.path.split(directory)[0]
         self.imageVideo = os.path.join(dir_, "pic2video.mp4")
         self.audio_file = os.path.join(dir_, "pic2video.wav")
         self.speed_video_file = os.path.join(dir_, f"{os.path.basename(dir_)}.mp4")
